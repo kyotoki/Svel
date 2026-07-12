@@ -54,6 +54,7 @@ interface ProfileModalsProps {
   onUnitSystemChange: (unitSystem: UnitSystem) => void;
   onLogOut: () => void;
   appVersion: string;
+  isPro: boolean;
 
   isSvelProModalVisible: boolean;
   onCloseSvelProModal: () => void;
@@ -101,6 +102,7 @@ export default function ProfileModals({
   onUnitSystemChange,
   onLogOut,
   appVersion,
+  isPro,
   isSvelProModalVisible,
   onCloseSvelProModal,
   isCertificationsModalVisible,
@@ -115,6 +117,7 @@ export default function ProfileModals({
       <AdventureDetailModal
         key={selectedAdventure?.id ?? "none"}
         adventure={selectedAdventure}
+        allAdventures={adventures}
         onClose={onCloseAdventure}
         onDelete={onDeleteAdventure}
       />
@@ -132,6 +135,15 @@ export default function ProfileModals({
         onClose={onCloseEditProfile}
         profile={profile}
         onUpdateProfile={onUpdateProfile}
+        gearSubtext={
+          gear.length > 0 ? `${gear.length} item${gear.length === 1 ? "" : "s"} tracked` : "Add your wetsuit, fins, computer & more"
+        }
+        onManageGear={onManageGear}
+        unitSystem={unitSystem}
+        onUnitSystemChange={onUnitSystemChange}
+        mapStyleLabel={MAP_STYLE_LABELS[mapStyle]}
+        onMapPreferences={onMapPreferences}
+        onPrivacyControls={onPrivacyControls}
       />
 
       <PrivacyControlsModal visible={isPrivacyModalVisible} onClose={onClosePrivacyModal} />
@@ -141,22 +153,15 @@ export default function ProfileModals({
         onClose={onCloseMapStylePicker}
         value={mapStyle}
         onSelect={onSelectMapStyle}
+        isPro={isPro}
+        onRequirePro={onOpenSvelPro}
       />
 
       <SettingsMenuModal
         visible={isSettingsMenuVisible}
         onClose={onCloseSettingsMenu}
         onEditProfile={onEditProfile}
-        onManageGear={onManageGear}
         onOpenSvelPro={onOpenSvelPro}
-        onPrivacyControls={onPrivacyControls}
-        onMapPreferences={onMapPreferences}
-        gearSubtext={
-          gear.length > 0 ? `${gear.length} item${gear.length === 1 ? "" : "s"} tracked` : "Add your wetsuit, fins, computer & more"
-        }
-        unitSystem={unitSystem}
-        onUnitSystemChange={onUnitSystemChange}
-        mapStyleLabel={MAP_STYLE_LABELS[mapStyle]}
         onLogOut={onLogOut}
         appVersion={appVersion}
       />

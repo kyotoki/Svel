@@ -1,10 +1,13 @@
 import io
+from unittest import mock
 
 import pytest
 from PIL import Image
 
+import models
 import storage as storage_module
-from conftest import as_user, client, remove_auth_override, reset_current_user, restore_auth_override
+from conftest import TestingSessionLocal, as_user, client, remove_auth_override, reset_current_user, restore_auth_override
+from moderation import ModerationResult, ModerationUnavailableError
 from routes import uploads as uploads_module
 
 
@@ -89,3 +92,79 @@ def test_two_users_photos_are_stored_separately(isolated_upload_root):
 
     assert len(list((isolated_upload_root / "user_a").glob("*.jpg"))) == 1
     assert len(list((isolated_upload_root / "user_b").glob("*.jpg"))) == 1
+
+
+def test_successful_upload_records_a_checked_moderation_row(isolated_upload_root):
+    as_user("user_a")
+    resp = client.post(
+        "/uploads/",
+        files={"file": ("dive.png", make_png_bytes(), "image/png")},
+    )
+    assert resp.status_code == 201
+    url = resp.json()["url"]
+
+    db = TestingSessionLocal()
+    try:
+        row = db.query(models.PhotoModeration).filter(models.PhotoModeration.photo_url == url).one()
+        assert row.status == "checked"
+        assert row.user_id == "user_a"
+        assert row.nudity_scores is not None
+    finally:
+        db.close()
+
+
+def test_flagged_image_is_rejected_before_storage(isolated_upload_root):
+    """The core moderation contract: an image Sightengine scores as explicit
+    must never reach save_photo (no file on disk, no URL, no DB row) and must
+    return a clear, non-500 error rather than silently dropping the photo."""
+    as_user("user_a")
+    rejected_result = ModerationResult(
+        rejected=True,
+        scores={"sexual_activity": 0.02, "sexual_display": 0.91, "erotica": 0.4, "none": 0.01},
+        flagged_categories={"sexual_display": 0.91},
+    )
+    with mock.patch.object(uploads_module, "check_image_for_nudity", return_value=rejected_result):
+        resp = client.post(
+            "/uploads/",
+            files={"file": ("dive.png", make_png_bytes(), "image/png")},
+        )
+
+    assert resp.status_code == 422
+    assert "explicit content" in resp.json()["detail"]
+
+    # Nothing was written to storage.
+    assert list((isolated_upload_root / "user_a").glob("*.jpg")) == []
+
+    # No moderation row either - a rejected upload was never "stored", so
+    # there's nothing to have a row about (see PhotoModeration's docstring).
+    db = TestingSessionLocal()
+    try:
+        assert db.query(models.PhotoModeration).count() == 0
+    finally:
+        db.close()
+
+
+def test_upload_fails_open_when_moderation_is_unavailable(isolated_upload_root):
+    """A Sightengine outage/misconfiguration must not block uploads (the
+    product decision documented in routes/uploads.py) - the photo is stored,
+    but flagged for a later recheck rather than silently treated as clean."""
+    as_user("user_a")
+    with mock.patch.object(
+        uploads_module, "check_image_for_nudity", side_effect=ModerationUnavailableError("boom")
+    ):
+        resp = client.post(
+            "/uploads/",
+            files={"file": ("dive.png", make_png_bytes(), "image/png")},
+        )
+
+    assert resp.status_code == 201
+    url = resp.json()["url"]
+    assert len(list((isolated_upload_root / "user_a").glob("*.jpg"))) == 1
+
+    db = TestingSessionLocal()
+    try:
+        row = db.query(models.PhotoModeration).filter(models.PhotoModeration.photo_url == url).one()
+        assert row.status == "skipped"
+        assert row.nudity_scores is None
+    finally:
+        db.close()

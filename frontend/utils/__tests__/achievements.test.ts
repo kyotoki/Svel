@@ -17,6 +17,7 @@ function makeAdventure(overrides: Partial<Adventure> & Pick<Adventure, "id" | "d
     tide_height_m: null,
     tank_pressure_bar: null,
     gas_mix: null,
+    species: [],
     ...overrides,
   };
 }
@@ -37,6 +38,20 @@ describe("buildAchievements - streaks", () => {
     const monthly = streaks.find((a) => a.id === "streak-30");
     expect(weekly?.unlocked).toBe(true);
     expect(monthly?.unlocked).toBe(false);
+  });
+
+  // The actual scenario the streak fix targets: a realistic dive trip with
+  // rest days mixed in, not perfect daily logging - previously this
+  // wouldn't have unlocked "Weekly Rhythm" at all (see streaks.test.ts).
+  test("a week-long trip with a couple of rest days still unlocks the weekly tier", () => {
+    const adventures = [
+      makeAdventure({ id: 1, date: "2026-07-01", activity_type: "scuba" }),
+      makeAdventure({ id: 2, date: "2026-07-02", activity_type: "scuba" }),
+      makeAdventure({ id: 3, date: "2026-07-04", activity_type: "scuba" }),
+      makeAdventure({ id: 4, date: "2026-07-07", activity_type: "scuba" }),
+    ];
+    const { streaks } = buildAchievements(adventures, [], []);
+    expect(streaks.find((a) => a.id === "streak-7")?.unlocked).toBe(true);
   });
 });
 

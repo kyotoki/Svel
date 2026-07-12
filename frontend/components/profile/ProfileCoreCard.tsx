@@ -56,7 +56,7 @@ export default function ProfileCoreCard({ profile, onUpdate }: ProfileCoreCardPr
           <Text style={styles.countryPlaceholder}>Select your home country</Text>
         )}
         <Ionicons
-          name="chevron-forward"
+          name="chevron-forward-outline"
           size={16}
           color={colors.text.tertiary}
           style={styles.countryChevron}

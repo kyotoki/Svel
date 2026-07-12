@@ -199,6 +199,7 @@ test("shows a clear message and leaves the form filled when the offline queue is
     activity_type: "scuba",
     tank_pressure_bar: null,
     gas_mix: null,
+    species: [],
   };
   for (let i = 0; i < MAX_QUEUE_SIZE; i++) {
     await enqueueAdventure(filler, []);
@@ -266,4 +267,55 @@ test("shows a sign-in-required message when a 403 is returned", async () => {
 
   expect(await getQueue()).toHaveLength(0);
   expect(showAlert).toHaveBeenCalledWith("Sign-in required", expect.stringContaining("sign"));
+});
+
+test("toggling multiple species accumulates them into one list, not a single value", () => {
+  const { result } = renderHook(() => useAdventureForm());
+
+  act(() => {
+    result.current.toggleSpecies("fish-clownfish");
+  });
+  act(() => {
+    result.current.toggleSpecies("sharks_rays-whale-shark");
+  });
+  act(() => {
+    result.current.toggleSpecies("reptiles-green-sea-turtle");
+  });
+
+  expect(result.current.speciesIds).toEqual([
+    "fish-clownfish",
+    "sharks_rays-whale-shark",
+    "reptiles-green-sea-turtle",
+  ]);
+
+  // Toggling an already-selected id removes just that one, same as
+  // unchecking a checkbox - the picker's toggle semantics, not a single-select.
+  act(() => {
+    result.current.toggleSpecies("sharks_rays-whale-shark");
+  });
+  expect(result.current.speciesIds).toEqual(["fish-clownfish", "reptiles-green-sea-turtle"]);
+});
+
+test("submits every tagged species on one adventure, not just the last one selected", async () => {
+  mockAuthedFetch.mockResolvedValue({ ok: true, json: async () => ({ id: 1 }) });
+
+  const { result } = renderHook(() => useAdventureForm());
+  fillValidForm(result.current);
+  act(() => {
+    result.current.toggleSpecies("fish-clownfish");
+    result.current.toggleSpecies("sharks_rays-whale-shark");
+    result.current.toggleSpecies("reptiles-green-sea-turtle");
+  });
+
+  await act(async () => {
+    await result.current.handleSubmit();
+  });
+
+  const [, init] = mockAuthedFetch.mock.calls[0];
+  const body = JSON.parse(init.body);
+  expect(body.species).toEqual([
+    "fish-clownfish",
+    "sharks_rays-whale-shark",
+    "reptiles-green-sea-turtle",
+  ]);
 });

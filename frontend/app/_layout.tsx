@@ -1,12 +1,20 @@
 import { ClerkLoaded, ClerkLoading, ClerkProvider } from "@clerk/clerk-expo";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
 
 import OceanLoadingScreen from "../components/auth/OceanLoadingScreen";
 import { PreferencesProvider } from "../contexts/PreferencesContext";
 import { AnalyticsEvents, track } from "../utils/analytics";
 import { tokenCache } from "../utils/tokenCache";
+
+// Must run once at module scope, before any OAuth flow starts (social
+// sign-in - see components/auth/SocialSignInButtons.tsx) - this is what
+// lets the in-app browser actually close and hand control back to the app
+// once Google/Apple redirects back after the user authenticates, instead of
+// leaving the browser tab open waiting.
+WebBrowser.maybeCompleteAuthSession();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -32,7 +40,16 @@ export default function RootLayout() {
       </ClerkLoading>
       <ClerkLoaded>
         <PreferencesProvider>
-          <Stack screenOptions={{ headerShown: false }}>
+          {/*
+            These three routes swap via <Redirect> based on auth/onboarding
+            state, not user-driven push/pop navigation - "fade" reads as a
+            mode change rather than implying a back-stack the user could pop
+            through. Set explicitly rather than left to each platform's
+            differing native-stack default (iOS defaults to a slide, Android
+            historically to a different native transition), so the motion is
+            the same on both rather than incidentally different.
+          */}
+          <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="onboarding" />

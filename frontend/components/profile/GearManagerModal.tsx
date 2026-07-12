@@ -58,11 +58,11 @@ export default function GearManagerModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.card} onPress={(e) => e?.stopPropagation()}>
           <View style={styles.headerRow}>
             <Text style={styles.title}>Manage Equipment</Text>
             <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-              <Ionicons name="close" size={20} color={colors.text.secondary} />
+              <Ionicons name="close-outline" size={20} color={colors.text.secondary} />
             </Pressable>
           </View>
 
@@ -144,7 +144,7 @@ export default function GearManagerModal({
               accessibilityRole="button"
               accessibilityLabel="Add gear"
             >
-              <Ionicons name="add" size={20} color={colors.text.inverse} />
+              <Ionicons name="add-outline" size={20} color={colors.text.inverse} />
             </Pressable>
           </View>
         </Pressable>

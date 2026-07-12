@@ -1,13 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  KeyboardAvoidingView,
-  LayoutAnimation,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-} from "react-native";
+import { KeyboardAvoidingView, LayoutAnimation, Platform, ScrollView, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import ActivityTypePicker from "../../components/log/ActivityTypePicker";
@@ -16,12 +8,23 @@ import DiveMetricsFields from "../../components/log/DiveMetricsFields";
 import FormField from "../../components/log/FormField";
 import LocationFields from "../../components/log/LocationFields";
 import PhotoPicker from "../../components/log/PhotoPicker";
+import SpeciesPicker from "../../components/log/SpeciesPicker";
+import AnimatedPressable from "../../components/ui/AnimatedPressable";
 import WaveSpinner from "../../components/ui/WaveSpinner";
 import { TAB_BAR_HEIGHT } from "../../constants/layout";
 import { colors, radius, spacing, typography } from "../../constants/theme";
 import { useAdventureForm } from "../../hooks/useAdventureForm";
 import { ActivityType } from "../../types/adventure";
 import "../../utils/enableLayoutAnimation";
+
+function parseCoordinate(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? null : parsed;
+}
 
 export default function LogAdventureScreen() {
   const form = useAdventureForm();
@@ -117,6 +120,15 @@ export default function LogAdventureScreen() {
             </>
           )}
 
+          <Text style={styles.sectionLabel}>MARINE LIFE</Text>
+          <SpeciesPicker
+            selectedIds={form.speciesIds}
+            onToggle={form.toggleSpecies}
+            latitude={parseCoordinate(form.form.latitude)}
+            longitude={parseCoordinate(form.form.longitude)}
+            activityType={form.activityType}
+          />
+
           <Text style={styles.sectionLabel}>NOTES</Text>
           <FormField
             label="Notes (optional)"
@@ -130,6 +142,7 @@ export default function LogAdventureScreen() {
           <Text style={styles.sectionLabel}>PHOTOS</Text>
           <PhotoPicker
             photos={form.photos}
+            maxPhotos={form.maxPhotos}
             isUploading={form.submitStage === "uploading-photo"}
             isSubmitting={form.isSubmitting}
             onTakePhoto={form.onTakePhoto}
@@ -137,11 +150,10 @@ export default function LogAdventureScreen() {
             onRemovePhotoAt={form.removePhotoAt}
           />
 
-          <TouchableOpacity
+          <AnimatedPressable
             style={[styles.submitButton, form.isSubmitting && styles.submitButtonDisabled]}
             onPress={form.handleSubmit}
             disabled={form.isSubmitting}
-            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Log adventure"
             accessibilityState={{ disabled: form.isSubmitting, busy: form.isSubmitting }}
@@ -159,7 +171,7 @@ export default function LogAdventureScreen() {
                 <Text style={styles.submitButtonText}>Log Adventure</Text>
               </>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>

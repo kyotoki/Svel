@@ -22,7 +22,7 @@ export default function AchievementDetailModal({
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.card} onPress={(e) => e?.stopPropagation()}>
           <View
             style={[
               styles.iconCircle,
@@ -38,7 +38,7 @@ export default function AchievementDetailModal({
 
           <View style={[styles.statusPill, unlocked ? styles.statusPillUnlocked : styles.statusPillLocked]}>
             <Ionicons
-              name={unlocked ? "checkmark-circle" : "lock-closed"}
+              name={unlocked ? "checkmark-circle-outline" : "lock-closed-outline"}
               size={13}
               color={unlocked ? colors.success : colors.text.secondary}
             />

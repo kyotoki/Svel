@@ -82,6 +82,13 @@ const palette = {
   teal700: "#0F766E",
   flame600: "#EA580C",
 
+  // Marine life category accents (constants/marineLife.ts) - two of these
+  // don't have an existing equivalent above (a shark-skin slate, a true
+  // coral pink distinct from `coral300`, which is reserved for dark-surface
+  // error text and would be a confusing double meaning to reuse here).
+  slate600: "#475569",
+  coralPink500: "#FF6F61",
+
   // Dedicated shadow ink - close to `abyss` but a distinct value used
   // consistently as shadowColor (and as the base for the dark overlay scrims
   // below), never as a surface or gradient stop.
@@ -133,6 +140,22 @@ export const colors = {
     nightOwl: palette.violet700,
     gearGuru: palette.rust700,
     streak: palette.flame600,
+  },
+
+  // One color per marine life species category (constants/marineLife.ts) -
+  // reused as-is for that category's achievement badges (utils/achievements.ts),
+  // the same "reused, not redefined" relationship activityTypes.ts already
+  // has with achievement colors elsewhere in this file.
+  marineLife: {
+    fish: palette.cyan500,
+    sharksRays: palette.slate600,
+    marineMammals: palette.blue600,
+    reptiles: palette.green700,
+    cephalopods: palette.violet700,
+    crustaceans: palette.rust700,
+    mollusks: palette.goldenrod600,
+    corals: palette.coralPink500,
+    other: palette.ink500,
   },
 
   surface: {

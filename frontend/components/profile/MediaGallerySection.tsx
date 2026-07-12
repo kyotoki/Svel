@@ -1,9 +1,12 @@
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { colors, radius, spacing, typography } from "../../constants/theme";
 import { Adventure } from "../../types/adventure";
 import EmptyState from "../ui/EmptyState";
+import PhotoThumbnail from "../ui/PhotoThumbnail";
 import AccordionSection from "./AccordionSection";
+
+const THUMBNAIL_SIZE = 90;
 
 interface MediaGallerySectionProps {
   recentPhotos: Adventure[];
@@ -23,7 +26,7 @@ export default function MediaGallerySection({ recentPhotos, onLogAdventure }: Me
           >
             {recentPhotos.map((adventure) => (
               <View key={adventure.id} style={styles.photoThumbWrap}>
-                <Image source={{ uri: adventure.photos[0] }} style={styles.photoThumb} />
+                <PhotoThumbnail uri={adventure.photos[0]} size={THUMBNAIL_SIZE} />
                 <View style={styles.photoDurationPill}>
                   <Text style={styles.photoDurationPillText}>⏱️ {adventure.duration_minutes}m</Text>
                 </View>
@@ -60,14 +63,8 @@ const styles = StyleSheet.create({
     // Without this, the wrapper stretches to the horizontal ScrollView row's
     // full cross-axis height (flexbox's default alignItems: "stretch"),
     // so the pill's `bottom` would anchor to that stretched height instead
-    // of the 90px-tall image actually visible inside it.
+    // of THUMBNAIL_SIZE-tall image actually visible inside it.
     alignSelf: "flex-start",
-  },
-  photoThumb: {
-    width: 90,
-    height: 90,
-    borderRadius: radius.md,
-    backgroundColor: colors.border.default,
   },
   photoDurationPill: {
     position: "absolute",

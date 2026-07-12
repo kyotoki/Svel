@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ReactNode, useRef, useState } from "react";
-import { Animated, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { Animated, LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
 
 import { colors, elevation, radius, spacing, typography } from "../../constants/theme";
+import AnimatedPressable from "../ui/AnimatedPressable";
 
 interface AccordionSectionProps {
   title: string;
@@ -11,9 +12,14 @@ interface AccordionSectionProps {
   /** Mounts children only after the first expand, instead of always-mounted-but-hidden.
    * Needed for expensive children (e.g. a map) that shouldn't be created while collapsed. */
   lazy?: boolean;
-  /** Fires on every expand/collapse. Useful when a child needs to react to its
-   * container's visibility changing (e.g. a Leaflet map's invalidateSize). */
+  /** Fires on every expand/collapse. Only called in uncontrolled mode (see
+   * `expanded` below) - a controlling parent already knows its own state. */
   onExpandedChange?: (expanded: boolean) => void;
+  /** Provide together with `onToggle` to make this a controlled accordion -
+   * e.g. a parent that force-expands sections matching an active search
+   * query. Omit both to keep the section managing its own open/closed state. */
+  expanded?: boolean;
+  onToggle?: () => void;
   children: ReactNode;
 }
 
@@ -23,25 +29,40 @@ export default function AccordionSection({
   defaultExpanded = false,
   lazy = false,
   onExpandedChange,
+  expanded: expandedProp,
+  onToggle,
   children,
 }: AccordionSectionProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const [everExpanded, setEverExpanded] = useState(defaultExpanded);
+  const isControlled = expandedProp !== undefined;
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
+  const expanded = isControlled ? expandedProp : internalExpanded;
+  const [everExpanded, setEverExpanded] = useState(expanded);
   const [contentHeight, setContentHeight] = useState(0);
-  const animatedProgress = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
+  const animatedProgress = useRef(new Animated.Value(expanded ? 1 : 0)).current;
 
-  const toggle = () => {
-    const next = !expanded;
-    setExpanded(next);
-    if (next) {
+  // Keyed on the effective `expanded` value (whichever mode produced it) so
+  // both a local tap and a controlling parent flipping its own state animate
+  // the same way.
+  useEffect(() => {
+    if (expanded) {
       setEverExpanded(true);
     }
-    onExpandedChange?.(next);
     Animated.timing(animatedProgress, {
-      toValue: next ? 1 : 0,
+      toValue: expanded ? 1 : 0,
       duration: 260,
       useNativeDriver: false,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  const toggle = () => {
+    if (isControlled) {
+      onToggle?.();
+      return;
+    }
+    const next = !internalExpanded;
+    setInternalExpanded(next);
+    onExpandedChange?.(next);
   };
 
   const onContentLayout = (event: LayoutChangeEvent) => {
@@ -62,13 +83,14 @@ export default function AccordionSection({
 
   return (
     <View style={styles.card}>
-      <Pressable
+      <AnimatedPressable
         onPress={toggle}
         style={styles.header}
         hitSlop={4}
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityState={{ expanded }}
+        pressedScale={0.99}
       >
         <View style={styles.headerLeft}>
           <View style={styles.iconBadge}>
@@ -77,9 +99,9 @@ export default function AccordionSection({
           <Text style={styles.title}>{title}</Text>
         </View>
         <Animated.View style={{ transform: [{ rotate }] }}>
-          <Ionicons name="chevron-down" size={18} color={colors.text.secondary} />
+          <Ionicons name="chevron-down-outline" size={18} color={colors.text.secondary} />
         </Animated.View>
-      </Pressable>
+      </AnimatedPressable>
 
       <Animated.View style={{ height: animatedHeight, overflow: "hidden" }}>
         <View onLayout={onContentLayout} style={styles.contentMeasure}>

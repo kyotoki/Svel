@@ -22,6 +22,10 @@ export interface Adventure {
   activity_type: ActivityType;
   tank_pressure_bar: number | null;
   gas_mix: string | null;
+  // A list of Species.id values (constants/marineLife.ts) spotted during
+  // this adventure - an open list of strings on this type deliberately,
+  // same as activity_type's relationship to constants/activityTypes.ts.
+  species: string[];
 }
 
 export type AdventureInput = Omit<Adventure, "id">;

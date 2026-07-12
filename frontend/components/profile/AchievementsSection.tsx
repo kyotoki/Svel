@@ -28,8 +28,13 @@ export default function AchievementsSection({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.achievementScrollRow}
       >
-        {achievements.streaks.map((achievement) => (
-          <AchievementBadge key={achievement.id} achievement={achievement} onPress={onSelectAchievement} />
+        {achievements.streaks.map((achievement, index) => (
+          <AchievementBadge
+            key={achievement.id}
+            achievement={achievement}
+            onPress={onSelectAchievement}
+            index={index}
+          />
         ))}
       </ScrollView>
 
@@ -39,8 +44,13 @@ export default function AchievementsSection({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.achievementScrollRow}
       >
-        {achievements.scuba.map((achievement) => (
-          <AchievementBadge key={achievement.id} achievement={achievement} onPress={onSelectAchievement} />
+        {achievements.scuba.map((achievement, index) => (
+          <AchievementBadge
+            key={achievement.id}
+            achievement={achievement}
+            onPress={onSelectAchievement}
+            index={index}
+          />
         ))}
       </ScrollView>
 
@@ -50,8 +60,13 @@ export default function AchievementsSection({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.achievementScrollRow}
       >
-        {achievements.snorkel.map((achievement) => (
-          <AchievementBadge key={achievement.id} achievement={achievement} onPress={onSelectAchievement} />
+        {achievements.snorkel.map((achievement, index) => (
+          <AchievementBadge
+            key={achievement.id}
+            achievement={achievement}
+            onPress={onSelectAchievement}
+            index={index}
+          />
         ))}
       </ScrollView>
 
@@ -61,15 +76,41 @@ export default function AchievementsSection({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.achievementScrollRow}
       >
-        {achievements.freediving.map((achievement) => (
-          <AchievementBadge key={achievement.id} achievement={achievement} onPress={onSelectAchievement} />
+        {achievements.freediving.map((achievement, index) => (
+          <AchievementBadge
+            key={achievement.id}
+            achievement={achievement}
+            onPress={onSelectAchievement}
+            index={index}
+          />
+        ))}
+      </ScrollView>
+
+      <Text style={[styles.subLabel, styles.subLabelSpaced]}>MARINE LIFE</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.achievementScrollRow}
+      >
+        {achievements.marineLife.map((achievement, index) => (
+          <AchievementBadge
+            key={achievement.id}
+            achievement={achievement}
+            onPress={onSelectAchievement}
+            index={index}
+          />
         ))}
       </ScrollView>
 
       <Text style={[styles.subLabel, styles.subLabelSpaced]}>CERTIFICATIONS</Text>
       <View style={styles.achievementRow}>
-        {achievements.certification.map((achievement) => (
-          <AchievementBadge key={achievement.id} achievement={achievement} onPress={onSelectAchievement} />
+        {achievements.certification.map((achievement, index) => (
+          <AchievementBadge
+            key={achievement.id}
+            achievement={achievement}
+            onPress={onSelectAchievement}
+            index={index}
+          />
         ))}
       </View>
       <SettingsRow
@@ -89,8 +130,13 @@ export default function AchievementsSection({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.achievementScrollRow}
       >
-        {achievements.global.map((achievement) => (
-          <AchievementBadge key={achievement.id} achievement={achievement} onPress={onSelectAchievement} />
+        {achievements.global.map((achievement, index) => (
+          <AchievementBadge
+            key={achievement.id}
+            achievement={achievement}
+            onPress={onSelectAchievement}
+            index={index}
+          />
         ))}
       </ScrollView>
     </AccordionSection>

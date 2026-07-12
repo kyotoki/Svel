@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity } from "
 
 import { authStyles, PLACEHOLDER_COLOR } from "../../components/auth/authStyles";
 import OceanAuthLayout from "../../components/auth/OceanAuthLayout";
+import SocialSignInButtons from "../../components/auth/SocialSignInButtons";
 
 // Clerk's bot-protection (Smart CAPTCHA) looks for this element by id on web
 // during custom sign-up flows; without it, it silently falls back to a
@@ -175,6 +176,8 @@ export default function SignUpScreen() {
           <Text style={authStyles.buttonText}>Sign Up</Text>
         )}
       </TouchableOpacity>
+
+      <SocialSignInButtons onError={setError} />
     </OceanAuthLayout>
   );
 }

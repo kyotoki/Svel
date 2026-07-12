@@ -1,12 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ImagePickerAsset } from "expo-image-picker";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { colors, radius, spacing, typography } from "../../constants/theme";
+import PhotoThumbnail from "../ui/PhotoThumbnail";
 import WaveSpinner from "../ui/WaveSpinner";
+
+const PREVIEW_SIZE = 100;
 
 interface PhotoPickerProps {
   photos: ImagePickerAsset[];
+  /** null means unlimited (Pro) - see useAdventureForm's maxPhotos. */
+  maxPhotos: number | null;
   isUploading: boolean;
   isSubmitting: boolean;
   onTakePhoto: () => void;
@@ -16,64 +21,77 @@ interface PhotoPickerProps {
 
 export default function PhotoPicker({
   photos,
+  maxPhotos,
   isUploading,
   isSubmitting,
   onTakePhoto,
   onChoosePhotos,
   onRemovePhotoAt,
 }: PhotoPickerProps) {
+  const atLimit = maxPhotos !== null && photos.length >= maxPhotos;
+  const disableAdd = isSubmitting || atLimit;
+
   return (
     <>
       {photos.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.photoPreviewRow}
-        >
-          {photos.map((asset, index) => (
-            <View key={asset.assetId ?? asset.uri} style={styles.photoPreviewWrap}>
-              <Image source={{ uri: asset.uri }} style={styles.photoPreview} />
-              {isUploading && (
-                <View style={styles.photoUploadingOverlay}>
-                  <WaveSpinner size="small" color={colors.text.inverse} />
-                </View>
-              )}
-              <TouchableOpacity
-                style={styles.removePhotoButton}
-                onPress={() => onRemovePhotoAt(index)}
-                hitSlop={8}
-                disabled={isSubmitting}
-                accessibilityRole="button"
-                accessibilityLabel="Remove photo"
-              >
-                <Ionicons
-                  name="close-circle"
-                  size={26}
-                  color={isSubmitting ? colors.text.disabled : colors.error}
-                />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
+        <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoPreviewRow}
+          >
+            {photos.map((asset, index) => (
+              <View key={asset.assetId ?? asset.uri} style={styles.photoPreviewWrap}>
+                <PhotoThumbnail uri={asset.uri} size={PREVIEW_SIZE} />
+                {isUploading && (
+                  <View style={styles.photoUploadingOverlay}>
+                    <WaveSpinner size="small" color={colors.text.inverse} />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.removePhotoButton}
+                  onPress={() => onRemovePhotoAt(index)}
+                  hitSlop={8}
+                  disabled={isSubmitting}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove photo"
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={26}
+                    color={isSubmitting ? colors.text.disabled : colors.error}
+                  />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+          <Text style={styles.photoCountText}>
+            {maxPhotos !== null
+              ? `${photos.length} of ${maxPhotos} photos`
+              : `${photos.length} photo${photos.length === 1 ? "" : "s"}`}
+          </Text>
+        </>
       )}
       <View style={styles.photoButtonsRow}>
         <TouchableOpacity
-          style={styles.photoButton}
+          testID="take-photo-button"
+          style={[styles.photoButton, disableAdd && styles.photoButtonDisabled]}
           onPress={onTakePhoto}
           activeOpacity={0.85}
-          disabled={isSubmitting}
+          disabled={disableAdd}
         >
-          <Ionicons name="camera-outline" size={20} color={colors.primary} />
-          <Text style={styles.photoButtonText}>Take Photo</Text>
+          <Ionicons name="camera-outline" size={20} color={disableAdd ? colors.text.disabled : colors.primary} />
+          <Text style={[styles.photoButtonText, disableAdd && styles.photoButtonTextDisabled]}>Take Photo</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.photoButton}
+          testID="choose-photos-button"
+          style={[styles.photoButton, disableAdd && styles.photoButtonDisabled]}
           onPress={onChoosePhotos}
           activeOpacity={0.85}
-          disabled={isSubmitting}
+          disabled={disableAdd}
         >
-          <Ionicons name="image-outline" size={20} color={colors.primary} />
-          <Text style={styles.photoButtonText}>Choose Photos</Text>
+          <Ionicons name="image-outline" size={20} color={disableAdd ? colors.text.disabled : colors.primary} />
+          <Text style={[styles.photoButtonText, disableAdd && styles.photoButtonTextDisabled]}>Choose Photos</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -103,18 +121,23 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.semibold,
     color: colors.primary,
   },
+  photoButtonDisabled: {
+    opacity: 0.5,
+  },
+  photoButtonTextDisabled: {
+    color: colors.text.disabled,
+  },
+  photoCountText: {
+    fontSize: typography.size.caption,
+    color: colors.text.tertiary,
+    marginBottom: spacing.sm,
+  },
   photoPreviewRow: {
     gap: spacing.sm,
     marginBottom: spacing.xs,
   },
   photoPreviewWrap: {
     alignSelf: "flex-start",
-  },
-  photoPreview: {
-    width: 100,
-    height: 100,
-    borderRadius: radius.lg,
-    backgroundColor: colors.border.default,
   },
   photoUploadingOverlay: {
     position: "absolute",

@@ -23,6 +23,7 @@ const PAYLOAD: QueuedAdventurePayload = {
   activity_type: "scuba",
   tank_pressure_bar: null,
   gas_mix: null,
+  species: [],
 };
 
 beforeEach(async () => {

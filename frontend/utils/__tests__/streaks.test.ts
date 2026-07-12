@@ -1,5 +1,5 @@
 import { Adventure } from "../../types/adventure";
-import { computeDaysSinceLastLog, computeLongestStreakDays, getMostRecentAdventureDate } from "../streaks";
+import { computeDaysSinceLastLog, computeLongestActiveStretchDays, getMostRecentAdventureDate } from "../streaks";
 
 function makeAdventure(id: number, date: string): Adventure {
   return {
@@ -20,34 +20,53 @@ function makeAdventure(id: number, date: string): Adventure {
     activity_type: "scuba",
     tank_pressure_bar: null,
     gas_mix: null,
+    species: [],
   };
 }
 
-describe("computeLongestStreakDays", () => {
+describe("computeLongestActiveStretchDays", () => {
   test("returns 0 for no adventures", () => {
-    expect(computeLongestStreakDays([])).toBe(0);
+    expect(computeLongestActiveStretchDays([])).toBe(0);
   });
 
   test("returns 1 for a single logged day", () => {
-    expect(computeLongestStreakDays([makeAdventure(1, "2026-07-01")])).toBe(1);
+    expect(computeLongestActiveStretchDays([makeAdventure(1, "2026-07-01")])).toBe(1);
   });
 
-  test("counts consecutive calendar days as one streak", () => {
+  test("counts consecutive calendar days as one stretch", () => {
     const adventures = [
       makeAdventure(1, "2026-07-01"),
       makeAdventure(2, "2026-07-02"),
       makeAdventure(3, "2026-07-03"),
     ];
-    expect(computeLongestStreakDays(adventures)).toBe(3);
+    expect(computeLongestActiveStretchDays(adventures)).toBe(3);
   });
 
-  test("a gap of more than one day breaks the streak", () => {
+  // The actual fix: a real dive trip (a rest day, a weathered-out day, a
+  // planned surface interval) shouldn't reset the stretch just because
+  // someone didn't log an adventure on literally every calendar day -
+  // previously this would have counted as two separate 1-2 day streaks
+  // instead of one 8-day stretch, making the streak achievements (see
+  // achievements.ts's STREAK_TIERS) all but unreachable for trip-based
+  // divers, which was the actual bug being fixed here.
+  test("tolerates gaps of up to 2 days without breaking the stretch (a rest day on a dive trip)", () => {
+    const adventures = [
+      makeAdventure(1, "2026-07-01"),
+      makeAdventure(2, "2026-07-02"),
+      makeAdventure(3, "2026-07-04"), // one rest day skipped
+      makeAdventure(4, "2026-07-05"),
+      makeAdventure(5, "2026-07-08"), // two rest days skipped
+    ];
+    expect(computeLongestActiveStretchDays(adventures)).toBe(8);
+  });
+
+  test("a gap of more than 3 days breaks the stretch", () => {
     const adventures = [
       makeAdventure(1, "2026-07-01"),
       makeAdventure(2, "2026-07-02"),
       makeAdventure(3, "2026-07-10"),
     ];
-    expect(computeLongestStreakDays(adventures)).toBe(2);
+    expect(computeLongestActiveStretchDays(adventures)).toBe(2);
   });
 
   test("returns the longest streak even if it isn't the most recent one", () => {
@@ -58,7 +77,7 @@ describe("computeLongestStreakDays", () => {
       makeAdventure(4, "2026-06-04"),
       makeAdventure(5, "2026-07-01"),
     ];
-    expect(computeLongestStreakDays(adventures)).toBe(4);
+    expect(computeLongestActiveStretchDays(adventures)).toBe(4);
   });
 
   test("multiple adventures on the same day count once toward the streak", () => {
@@ -67,7 +86,7 @@ describe("computeLongestStreakDays", () => {
       makeAdventure(2, "2026-07-01"),
       makeAdventure(3, "2026-07-02"),
     ];
-    expect(computeLongestStreakDays(adventures)).toBe(2);
+    expect(computeLongestActiveStretchDays(adventures)).toBe(2);
   });
 });
 

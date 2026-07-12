@@ -11,15 +11,19 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
 import routes.adventures as adventures_module  # noqa: E402
+import routes.uploads as uploads_module  # noqa: E402
 from auth import get_current_user_id  # noqa: E402
 from database import Base, get_db  # noqa: E402
 from main import app  # noqa: E402
+from moderation import ModerationResult  # noqa: E402
 
 DEFAULT_TEST_MARINE_CONDITIONS = {
     "water_temp_c": 24.5,
     "wave_height_m": 0.8,
     "tide_height_m": 0.3,
 }
+
+DEFAULT_TEST_MODERATION_RESULT = ModerationResult(rejected=False, scores={"none": 0.99}, flagged_categories={})
 
 _current_user = {"id": "user_a"}
 
@@ -77,6 +81,25 @@ def stub_marine_weather():
         adventures_module,
         "fetch_marine_conditions",
         return_value=dict(DEFAULT_TEST_MARINE_CONDITIONS),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def stub_moderation():
+    """Photo upload calls out to a real third-party moderation API (Sightengine).
+
+    Stub it by default so the test suite doesn't depend on network access or
+    real Sightengine credentials (check_image_for_nudity is never allowed to
+    make a real HTTP call during the test suite); tests that care about
+    moderation behavior specifically (tests/test_moderation.py,
+    tests/test_uploads.py's rejection/fail-open cases) override this via
+    mock.patch in their own body.
+    """
+    with mock.patch.object(
+        uploads_module,
+        "check_image_for_nudity",
+        return_value=DEFAULT_TEST_MODERATION_RESULT,
     ):
         yield
 

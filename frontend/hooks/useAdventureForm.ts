@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 
 import { ENDPOINTS } from "../constants/api";
+import { MAX_PHOTOS_PER_ADVENTURE } from "../constants/limits";
 import { usePreferences } from "../contexts/PreferencesContext";
 import { ActivityType } from "../types/adventure";
 import { enqueueAdventure, QueuedAdventurePayload, QueuedPhoto } from "../utils/adventureQueue";
@@ -16,6 +17,7 @@ import { formatDateISO } from "../utils/date";
 import { isAuthError, QueueFullError, REAUTH_MESSAGE, ServerRejectedError } from "../utils/errors";
 import { geocodeLocationName } from "../utils/geocode";
 import { extendStreakReminderFromLog } from "../utils/notifications";
+import { useIsProUser } from "../utils/proTier";
 import { uploadPhoto } from "../utils/uploadPhoto";
 import { depthUnitLabel, feetToMeters } from "../utils/units";
 
@@ -60,7 +62,8 @@ function buildPayload(
   activityType: ActivityType,
   adventureDate: Date,
   isScuba: boolean,
-  isImperial: boolean
+  isImperial: boolean,
+  speciesIds: string[]
 ): QueuedAdventurePayload {
   const tracksDepth = tracksDepthFor(activityType);
   return {
@@ -79,6 +82,7 @@ function buildPayload(
     activity_type: activityType,
     tank_pressure_bar: isScuba && form.tank_pressure_bar.trim() ? Number(form.tank_pressure_bar) : null,
     gas_mix: isScuba && form.gas_mix.trim() ? form.gas_mix.trim() : null,
+    species: speciesIds,
   };
 }
 
@@ -89,11 +93,17 @@ export function useAdventureForm() {
   const { unitSystem } = usePreferences();
   const { refreshCounts: refreshSyncCounts } = useAdventureSync();
   const isImperial = unitSystem === "imperial";
+  const isPro = useIsProUser();
+  // null = no cap (Pro) - kept as a number|null rather than Infinity so it
+  // can be displayed directly ("x of y photos") without special-casing an
+  // infinite value in the UI.
+  const maxPhotos = isPro ? null : MAX_PHOTOS_PER_ADVENTURE;
 
   const [activityType, setActivityType] = useState<ActivityType>("scuba");
   const [adventureDate, setAdventureDate] = useState<Date>(new Date());
   const [form, setForm] = useState<AdventureFormState>(INITIAL_FORM);
   const [photos, setPhotos] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [speciesIds, setSpeciesIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<Partial<Record<keyof AdventureFormState, string>>>({});
   const [submitStage, setSubmitStage] = useState<SubmitStage>("idle");
   const [locationMode, setLocationMode] = useState<LocationInputMode>("coordinates");
@@ -165,6 +175,10 @@ export function useAdventureForm() {
   };
 
   const onTakePhoto = async () => {
+    if (maxPhotos !== null && photos.length >= maxPhotos) {
+      showAlert("Photo limit reached", `You can attach up to ${maxPhotos} photos per adventure.`);
+      return;
+    }
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       showAlert("Camera access needed", "Enable camera access in Settings to take a photo.");
@@ -177,6 +191,10 @@ export function useAdventureForm() {
   };
 
   const onChoosePhotos = async () => {
+    if (maxPhotos !== null && photos.length >= maxPhotos) {
+      showAlert("Photo limit reached", `You can attach up to ${maxPhotos} photos per adventure.`);
+      return;
+    }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       showAlert("Photo library access needed", "Enable photo library access in Settings to choose photos.");
@@ -187,12 +205,26 @@ export function useAdventureForm() {
       allowsMultipleSelection: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      setPhotos((prev) => [...prev, ...result.assets]);
+      const room = maxPhotos === null ? result.assets.length : maxPhotos - photos.length;
+      const accepted = result.assets.slice(0, room);
+      setPhotos((prev) => [...prev, ...accepted]);
+      if (result.assets.length > accepted.length) {
+        showAlert(
+          "Photo limit reached",
+          `Only added ${accepted.length} of ${result.assets.length} - adventures can have up to ${maxPhotos} photos.`
+        );
+      }
     }
   };
 
   const removePhotoAt = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleSpecies = (speciesId: string) => {
+    setSpeciesIds((prev) =>
+      prev.includes(speciesId) ? prev.filter((id) => id !== speciesId) : [...prev, speciesId]
+    );
   };
 
   const validate = (): boolean => {
@@ -259,6 +291,7 @@ export function useAdventureForm() {
   const resetForm = () => {
     setForm(INITIAL_FORM);
     setPhotos([]);
+    setSpeciesIds([]);
     setActivityType("scuba");
     setAdventureDate(new Date());
     setLocationMode("coordinates");
@@ -330,7 +363,7 @@ export function useAdventureForm() {
       return;
     }
 
-    const payload = buildPayload(form, activityType, adventureDate, isScuba, isImperial);
+    const payload = buildPayload(form, activityType, adventureDate, isScuba, isImperial, speciesIds);
 
     const netState = await NetInfo.fetch();
     if (netState.isConnected === false) {
@@ -402,6 +435,8 @@ export function useAdventureForm() {
     adventureDate,
     form,
     photos,
+    maxPhotos,
+    speciesIds,
     errors,
     submitStage,
     isSubmitting,
@@ -422,6 +457,7 @@ export function useAdventureForm() {
     onTakePhoto,
     onChoosePhotos,
     removePhotoAt,
+    toggleSpecies,
     handleSubmit,
   };
 }

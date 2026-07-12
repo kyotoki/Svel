@@ -48,12 +48,12 @@ export default function PendingSyncBadge() {
             hitSlop={6}
             accessibilityRole="button"
           >
-            <Ionicons name="alert-circle" size={13} color={colors.error} />
+            <Ionicons name="alert-circle-outline" size={13} color={colors.error} />
             <Text style={styles.failedPillText}>Sync queue full ({pendingCount})</Text>
           </Pressable>
         ) : (
           <View style={styles.pill}>
-            <Ionicons name={isSyncing ? "sync" : "cloud-upload-outline"} size={13} color={colors.secondary} />
+            <Ionicons name={isSyncing ? "sync-outline" : "cloud-upload-outline"} size={13} color={colors.secondary} />
             <Text style={styles.pillText}>
               {pendingCount} pending sync
             </Text>

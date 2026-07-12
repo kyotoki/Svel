@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -10,21 +11,49 @@ interface SvelProModalProps {
   onClose: () => void;
 }
 
+// The core logging loop (any activity type, species tagging/life list, the
+// standard map, achievements/stats, nearby-species suggestions) is
+// deliberately not listed here at all - this screen only ever lists what
+// Pro *adds*, never implies any of this is behind a paywall. See the
+// free/Pro audit this list came out of: nothing in the app actually gates
+// any of these today, and it should stay that way.
 const FREE_FEATURES = [
-  "Basic adventure logging",
-  "Standard map views",
-  "Basic stats tracking",
+  "Adventure logging - every activity type",
+  "Species tagging & life list",
+  "Standard map view",
+  "Achievements & stats",
+  "Nearby species suggestions",
 ];
 
 const PRO_FEATURES = [
-  "Advanced Marine Weather & Tide overlays",
-  "Unlimited Gear wear-and-tear tracking",
-  "Custom Map styles (Satellite/Hybrid)",
-  "Premium social sharing graphics cards",
+  "Satellite & Hybrid map imagery",
+  "Unlimited photo storage (free is capped at 6 per adventure)",
+  "Advanced stats: year-over-year trends, personal record timeline, seasonal breakdowns",
 ];
 
+type Plan = "annual" | "monthly";
+
+const PLAN_COPY: Record<Plan, { price: string; period: string; note?: string }> = {
+  annual: { price: "$44.99", period: "/year", note: "Just $3.75/mo - save 46% vs. monthly" },
+  monthly: { price: "$6.99", period: "/month" },
+};
+
 export default function SvelProModal({ visible, onClose }: SvelProModalProps) {
+  // Annual is the default/highlighted plan, not monthly - a single
+  // infrequent annual charge is easier to live with than a recurring
+  // monthly one, and defaulting to it (rather than presenting both
+  // equally) is the actual lever for that, not just listing it as an option.
+  const [selectedPlan, setSelectedPlan] = useState<Plan>("annual");
+
   return (
+    // Deliberately "slide", not "fade" like every other modal in this app -
+    // every other modal (see components/profile/*Modal.tsx,
+    // components/map/AdventureDetailModal.tsx) is `transparent`, a small
+    // backdrop-anchored dialog, where a fade is the right feel. This one is
+    // opaque and full-screen (its own SafeAreaView, its own scroll content) -
+    // a genuinely different UI shape, a page-sheet, not a dialog - and
+    // "slide up from bottom" is the conventional transition for that shape
+    // on both platforms. Keep this distinction; don't "fix" it into fade.
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <LinearGradient colors={gradients.deepOcean} style={styles.hero}>
@@ -35,16 +64,30 @@ export default function SvelProModal({ visible, onClose }: SvelProModalProps) {
             accessibilityRole="button"
             accessibilityLabel="Close"
           >
-            <Ionicons name="close" size={22} color={colors.text.inverse} />
+            <Ionicons name="close-outline" size={22} color={colors.text.inverse} />
           </Pressable>
           <View style={styles.heroIconBadge}>
-            <Ionicons name="star" size={28} color={colors.premium} />
+            <Ionicons name="star-outline" size={28} color={colors.premium} />
           </View>
           <Text style={styles.heroTitle}>Svel Pro</Text>
           <Text style={styles.heroTagline}>Unlock the full ocean experience</Text>
         </LinearGradient>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.planRow}>
+            <PlanOption
+              plan="annual"
+              selected={selectedPlan === "annual"}
+              onSelect={() => setSelectedPlan("annual")}
+              badge="BEST VALUE"
+            />
+            <PlanOption
+              plan="monthly"
+              selected={selectedPlan === "monthly"}
+              onSelect={() => setSelectedPlan("monthly")}
+            />
+          </View>
+
           <View style={styles.tierCard}>
             <Text style={styles.tierLabel}>FREE VERSION</Text>
             {FREE_FEATURES.map((feature) => (
@@ -62,12 +105,12 @@ export default function SvelProModal({ visible, onClose }: SvelProModalProps) {
             style={styles.tierCardPro}
           >
             <View style={styles.proTierHeader}>
-              <Ionicons name="star" size={16} color={colors.premium} />
-              <Text style={styles.tierLabelPro}>SVEL PRO UPGRADE</Text>
+              <Ionicons name="star-outline" size={16} color={colors.premium} />
+              <Text style={styles.tierLabelPro}>SVEL PRO ADDS</Text>
             </View>
             {PRO_FEATURES.map((feature) => (
               <View key={feature} style={styles.featureRow}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.premium} />
+                <Ionicons name="checkmark-circle-outline" size={18} color={colors.premium} />
                 <Text style={styles.featureTextPro}>{feature}</Text>
               </View>
             ))}
@@ -77,12 +120,51 @@ export default function SvelProModal({ visible, onClose }: SvelProModalProps) {
         <View style={styles.ctaWrap}>
           <Pressable style={styles.ctaButton} disabled accessibilityState={{ disabled: true }}>
             <Ionicons name="lock-closed-outline" size={16} color={withOpacity(colors.text.inverse, 0.7)} />
-            <Text style={styles.ctaButtonText}>Upgrade to Pro — Coming Soon</Text>
+            <Text style={styles.ctaButtonText}>
+              {`Upgrade to Pro — ${PLAN_COPY[selectedPlan].price}${PLAN_COPY[selectedPlan].period} — Coming Soon`}
+            </Text>
           </Pressable>
           <Text style={styles.ctaNote}>Premium subscriptions aren't available yet.</Text>
         </View>
       </SafeAreaView>
     </Modal>
+  );
+}
+
+function PlanOption({
+  plan,
+  selected,
+  onSelect,
+  badge,
+}: {
+  plan: Plan;
+  selected: boolean;
+  onSelect: () => void;
+  badge?: string;
+}) {
+  const copy = PLAN_COPY[plan];
+  return (
+    <Pressable
+      style={[styles.planCard, selected && styles.planCardSelected]}
+      onPress={onSelect}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${plan === "annual" ? "Annual" : "Monthly"} plan, ${copy.price}${copy.period}`}
+    >
+      {badge && (
+        <View style={styles.planBadge}>
+          <Text style={styles.planBadgeText}>{badge}</Text>
+        </View>
+      )}
+      <Text style={[styles.planName, selected && styles.planNameSelected]}>
+        {plan === "annual" ? "Annual" : "Monthly"}
+      </Text>
+      <Text style={[styles.planPrice, selected && styles.planPriceSelected]}>
+        {copy.price}
+        <Text style={styles.planPeriod}>{copy.period}</Text>
+      </Text>
+      {copy.note && <Text style={[styles.planNote, selected && styles.planNoteSelected]}>{copy.note}</Text>}
+    </Pressable>
   );
 }
 
@@ -136,6 +218,69 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.md,
     gap: spacing.md,
+  },
+  planRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  planCard: {
+    flex: 1,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: colors.border.default,
+    backgroundColor: colors.surface.card,
+    padding: spacing.md,
+    alignItems: "center",
+  },
+  planCardSelected: {
+    borderColor: colors.premium,
+    backgroundColor: withOpacity(colors.premium, 0.08),
+  },
+  planBadge: {
+    position: "absolute",
+    top: -10,
+    backgroundColor: colors.premium,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+  },
+  planBadgeText: {
+    fontSize: 9,
+    fontWeight: typography.weight.bold,
+    color: colors.premiumTextStrong,
+    letterSpacing: 0.4,
+  },
+  planName: {
+    fontSize: typography.size.small,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
+  },
+  planNameSelected: {
+    color: colors.text.primary,
+  },
+  planPrice: {
+    fontSize: typography.size.title,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+    marginTop: spacing.xxs,
+  },
+  planPriceSelected: {
+    color: colors.text.primary,
+  },
+  planPeriod: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.semibold,
+  },
+  planNote: {
+    fontSize: 10,
+    color: colors.text.tertiary,
+    marginTop: spacing.xxs,
+    textAlign: "center",
+  },
+  planNoteSelected: {
+    color: colors.secondary,
+    fontWeight: typography.weight.semibold,
   },
   tierCard: {
     backgroundColor: colors.surface.card,
@@ -214,6 +359,7 @@ const styles = StyleSheet.create({
     fontSize: typography.size.body,
     fontWeight: typography.weight.bold,
     color: colors.text.inverse,
+    textAlign: "center",
   },
   ctaNote: {
     fontSize: typography.size.caption,

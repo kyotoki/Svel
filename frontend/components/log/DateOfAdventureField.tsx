@@ -98,7 +98,7 @@ export default function DateOfAdventureField({ value, onChange }: DateOfAdventur
         </View>
         <View style={styles.rowRight}>
           <Text style={styles.rowValue}>{formatDisplayDate(value)}</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+          <Ionicons name="chevron-forward-outline" size={16} color={colors.text.tertiary} />
         </View>
       </Pressable>
 
@@ -110,7 +110,7 @@ export default function DateOfAdventureField({ value, onChange }: DateOfAdventur
           onRequestClose={() => setIsPickerVisible(false)}
         >
           <Pressable style={styles.backdrop} onPress={() => setIsPickerVisible(false)}>
-            <Pressable style={styles.pickerCard} onPress={(e) => e.stopPropagation()}>
+            <Pressable style={styles.pickerCard} onPress={(e) => e?.stopPropagation()}>
               <DateTimePicker
                 value={value}
                 mode="date"

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { colors, radius, spacing, typography, withOpacity } from "../../constants/theme";
+import Skeleton from "../ui/Skeleton";
 
 interface PhotoCarouselProps {
   photos: string[];
@@ -22,6 +23,11 @@ export default function PhotoCarousel({ photos, height }: PhotoCarouselProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedIndices, setFailedIndices] = useState<Record<number, boolean>>({});
+  // Same Skeleton-pulse-while-loading treatment as components/ui/PhotoThumbnail
+  // (the log form/profile gallery thumbnails) - this hero photo is a
+  // different shape (wide, card-clipped) but should behave the same way
+  // while its remote image is in flight.
+  const [loadedIndices, setLoadedIndices] = useState<Record<number, boolean>>({});
 
   const onLayout = (event: LayoutChangeEvent) => {
     setContainerWidth(event.nativeEvent.layout.width);
@@ -64,13 +70,18 @@ export default function PhotoCarousel({ photos, height }: PhotoCarouselProps) {
                 <Text style={styles.photoPlaceholderText}>Photo unavailable</Text>
               </View>
             ) : (
-              <Image
-                key={url}
-                source={{ uri: url }}
-                style={{ width: containerWidth, height }}
-                resizeMode="cover"
-                onError={() => setFailedIndices((prev) => ({ ...prev, [index]: true }))}
-              />
+              <View key={url} style={{ width: containerWidth, height }}>
+                <Image
+                  source={{ uri: url }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                  onLoad={() => setLoadedIndices((prev) => ({ ...prev, [index]: true }))}
+                  onError={() => setFailedIndices((prev) => ({ ...prev, [index]: true }))}
+                />
+                {!loadedIndices[index] && (
+                  <Skeleton style={StyleSheet.absoluteFill} baseColor={colors.border.default} />
+                )}
+              </View>
             )
           )}
         </ScrollView>

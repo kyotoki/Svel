@@ -37,12 +37,12 @@ export default function ActivityTypePicker({ value, onChange }: ActivityTypePick
           <Ionicons name={selected.icon} size={16} color={colors.primary} />
         </View>
         <Text style={styles.selectedText}>{selected.label}</Text>
-        <Ionicons name="chevron-down" size={18} color={colors.text.secondary} />
+        <Ionicons name="chevron-down-outline" size={18} color={colors.text.secondary} />
       </Pressable>
 
       <Modal visible={isOpen} transparent animationType="fade" onRequestClose={() => setIsOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setIsOpen(false)}>
-          <Pressable style={styles.menu} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={styles.menu} onPress={(e) => e?.stopPropagation()}>
             {OPTIONS.map((option) => {
               const isSelected = option.value === value;
               return (
@@ -67,7 +67,7 @@ export default function ActivityTypePicker({ value, onChange }: ActivityTypePick
                   </Text>
                   {isSelected && (
                     <Ionicons
-                      name="checkmark"
+                      name="checkmark-outline"
                       size={18}
                       color={colors.text.inverse}
                       style={styles.checkmark}

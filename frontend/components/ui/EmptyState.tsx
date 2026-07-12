@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { colors, radius, spacing, typography } from "../../constants/theme";
+import AnimatedPressable from "./AnimatedPressable";
 
 // Either a single emoji glyph (the "brand moment" look used for whole-screen
 // empty states, matching the map pins/welcome-screen convention) or an
@@ -44,16 +45,16 @@ export default function EmptyState({ icon, title, message, action, size = "full"
       <Text style={isCompact ? styles.messageCompact : styles.messageFull}>{message}</Text>
 
       {action && (
-        <Pressable
+        <AnimatedPressable
           style={[styles.button, isCompact && styles.buttonCompact]}
           onPress={action.onPress}
           hitSlop={spacing.xs}
           accessibilityRole="button"
           accessibilityLabel={action.label}
         >
-          <Ionicons name="add-circle" size={isCompact ? 16 : 18} color={colors.text.inverse} />
+          <Ionicons name="add-circle-outline" size={isCompact ? 16 : 18} color={colors.text.inverse} />
           <Text style={[styles.buttonText, isCompact && styles.buttonTextCompact]}>{action.label}</Text>
-        </Pressable>
+        </AnimatedPressable>
       )}
     </View>
   );

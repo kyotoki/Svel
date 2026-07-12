@@ -45,12 +45,12 @@ export default function ActivityTypeFilter({ value, onChange }: ActivityTypeFilt
       >
         <Ionicons name={selected.icon} size={14} color={colors.secondary} />
         <Text style={styles.triggerText}>{selected.label}</Text>
-        <Ionicons name="chevron-down" size={14} color={colors.text.secondary} />
+        <Ionicons name="chevron-down-outline" size={14} color={colors.text.secondary} />
       </Pressable>
 
       <Modal visible={isOpen} transparent animationType="fade" onRequestClose={() => setIsOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setIsOpen(false)}>
-          <Pressable style={styles.menu} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={styles.menu} onPress={(e) => e?.stopPropagation()}>
             <Text style={styles.menuTitle}>FILTER BY ACTIVITY</Text>
             {OPTIONS.map((option) => {
               const isSelected = option.value === value;
@@ -73,7 +73,7 @@ export default function ActivityTypeFilter({ value, onChange }: ActivityTypeFilt
                   </Text>
                   {isSelected && (
                     <Ionicons
-                      name="checkmark"
+                      name="checkmark-outline"
                       size={18}
                       color={colors.text.inverse}
                       style={styles.checkmark}

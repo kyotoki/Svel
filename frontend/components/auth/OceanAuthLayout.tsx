@@ -1,6 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { ReactNode } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -35,7 +36,11 @@ export default function OceanAuthLayout({
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.badge}>
-              <Text style={styles.badgeEmoji}>🤿</Text>
+              <Image
+                source={require("../../assets/images/svellogo-mark-light.png")}
+                style={styles.badgeLogo}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
@@ -75,8 +80,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 20,
   },
-  badgeEmoji: {
-    fontSize: 30,
+  // The mark's native crop is portrait (~185x300) - sized to preserve that
+  // ratio rather than force it into a square, so it isn't stretched.
+  badgeLogo: {
+    width: 26,
+    height: 42,
   },
   title: {
     fontSize: 30,

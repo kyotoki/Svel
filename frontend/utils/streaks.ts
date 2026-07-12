@@ -14,24 +14,47 @@ function dateStringToDayIndex(dateStr: string): number {
   return Math.floor(Date.UTC(year, month - 1, day) / DAY_MS);
 }
 
-// The longest run of consecutive calendar days that ever contained at least
-// one logged adventure (any activity type - a streak is about consistently
-// opening the app, not about sticking to one activity). Deliberately the
-// *longest ever* streak, not the current one: every other achievement in
-// this file is a permanent, monotonic unlock once a threshold is crossed,
-// and a streak achievement that could re-lock after a missed day would break
-// that pattern and feel punishing rather than motivating.
-export function computeLongestStreakDays(adventures: Adventure[]): number {
+// A missed day or two doesn't end a dive trip - a week-long trip with a
+// weather day or a planned surface interval in the middle is still one
+// continuous stretch of being "in the water", not two separate ones. This
+// is the gap (in days) tolerated between two logged days before a stretch
+// is considered broken - e.g. logging Monday then Thursday (a 2-day gap)
+// still counts as one continuous stretch; logging Monday then the
+// following Monday (a 6-day gap) does not.
+//
+// Chosen instead of requiring literally-consecutive days: a strict
+// day-over-day streak is a fitness-app/daily-habit concept that doesn't
+// match how diving actually happens for the overwhelming majority of
+// divers, who go on trips (with rest/travel days mixed in) rather than
+// diving every single calendar day for weeks at a time. A strict version
+// of this metric was previously the basis for the streak achievements
+// (see utils/achievements.ts's STREAK_TIERS) and was all but unreachable
+// for anyone who wasn't logging an adventure on literally every calendar
+// day - "Weekly Rhythm" (7) and especially "Monthly Devotion" (30) were
+// permanently locked for nearly everyone, which reads as broken/unfair
+// rather than motivating.
+const STRETCH_GRACE_DAYS = 2;
+
+// The longest run of "active" days (see STRETCH_GRACE_DAYS above) that ever
+// contained at least one logged adventure (any activity type - this is
+// about staying consistently in the water, not about sticking to one
+// activity). Deliberately the *longest ever* stretch, not the current one:
+// every other achievement in this file is a permanent, monotonic unlock
+// once a threshold is crossed, and one that could re-lock after a gap
+// would break that pattern and feel punishing rather than motivating.
+export function computeLongestActiveStretchDays(adventures: Adventure[]): number {
   const dayIndices = Array.from(new Set(adventures.map((a) => dateStringToDayIndex(a.date)))).sort(
     (a, b) => a - b
   );
 
   let longest = 0;
-  let current = 0;
+  let stretchStart: number | null = null;
   let previous: number | null = null;
   for (const day of dayIndices) {
-    current = previous !== null && day === previous + 1 ? current + 1 : 1;
-    longest = Math.max(longest, current);
+    if (previous === null || day - previous > STRETCH_GRACE_DAYS + 1) {
+      stretchStart = day;
+    }
+    longest = Math.max(longest, day - (stretchStart as number) + 1);
     previous = day;
   }
   return longest;

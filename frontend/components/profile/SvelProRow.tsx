@@ -18,7 +18,7 @@ export default function SvelProRow({ onPress }: SvelProRowProps) {
         style={styles.gradient}
       >
         <View style={styles.iconBadge}>
-          <Ionicons name="star" size={17} color={colors.premium} />
+          <Ionicons name="star-outline" size={17} color={colors.premium} />
         </View>
         <View style={styles.textWrap}>
           <Text style={styles.label}>Svel Pro Membership</Text>

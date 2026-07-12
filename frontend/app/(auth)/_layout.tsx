@@ -19,5 +19,8 @@ export default function AuthLayout() {
     return <Redirect href={onboardingStatus === "needed" ? "/onboarding" : "/"} />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  // Sign-in <-> sign-up navigates via <Link replace>, not a push - "fade"
+  // matches the root Stack's explicit choice (app/_layout.tsx) for the same
+  // reason: a swap, not a back-stack the user would expect to pop through.
+  return <Stack screenOptions={{ headerShown: false, animation: "fade" }} />;
 }

@@ -59,7 +59,7 @@ def create_adventure(
     user_id: str = Depends(get_current_user_id),
 ):
     conditions = fetch_marine_conditions(adventure.latitude, adventure.longitude)
-    adventure_data = adventure.model_dump(exclude={"photos"})
+    adventure_data = adventure.model_dump(exclude={"photos", "species"})
     db_adventure = models.Adventure(
         **adventure_data,
         user_id=user_id,
@@ -70,6 +70,9 @@ def create_adventure(
     db_adventure.photos = [
         models.AdventurePhoto(url=url, position=position)
         for position, url in enumerate(adventure.photos)
+    ]
+    db_adventure.species = [
+        models.AdventureSpecies(species_id=species_id) for species_id in adventure.species
     ]
     db.add(db_adventure)
     db.commit()

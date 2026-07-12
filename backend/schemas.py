@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -24,6 +24,11 @@ class AdventureBase(BaseModel):
     activity_type: str = Field("scuba", min_length=1, max_length=30)
     tank_pressure_bar: Optional[float] = Field(None, ge=0)
     gas_mix: Optional[str] = Field(None, max_length=50)
+    # A list of species ids (e.g. "fish-clownfish") from the frontend's
+    # constants/marineLife.ts - same "open string, not a backend enum" choice
+    # as activity_type above, and the same before-validator flattening shape
+    # as photos above (ORM rows expose `.species_id`, not plain strings).
+    species: list[str] = Field(default_factory=list, max_length=200)
 
     @field_validator("activity_type", mode="before")
     @classmethod
@@ -45,6 +50,21 @@ class AdventureBase(BaseModel):
         if value is None:
             return []
         return [item.url if hasattr(item, "url") else item for item in value]
+
+    @field_validator("species", mode="before")
+    @classmethod
+    def flatten_species_ids(cls, value):
+        if value is None:
+            return []
+        return [item.species_id if hasattr(item, "species_id") else item for item in value]
+
+    @field_validator("species")
+    @classmethod
+    def dedupe_species_ids(cls, value):
+        # Preserves first-seen order rather than a plain set() - stable
+        # output regardless of input order, and dict insertion order is
+        # guaranteed in Python 3.7+.
+        return list(dict.fromkeys(value))
 
 
 class AdventureCreate(AdventureBase):
@@ -123,3 +143,38 @@ class UserProfile(UserProfileBase):
     model_config = ConfigDict(from_attributes=True)
 
     user_id: str
+
+
+# A closed set (unlike activity_type's deliberately-open string) since these
+# drive both moderation-admin triage and eventual app-store-required
+# reporting-flow copy on the frontend - both want a fixed, known vocabulary
+# rather than arbitrary free text as the primary signal. `details` below is
+# where free text still belongs.
+ContentReportReason = Literal[
+    "nudity_or_sexual_content",
+    "harassment_or_bullying",
+    "spam",
+    "inappropriate_content",
+    "other",
+]
+
+
+class ContentReportCreate(BaseModel):
+    adventure_id: int
+    # Set when reporting one specific photo rather than the adventure as a
+    # whole; omit to report the adventure in general (its title, notes, etc).
+    photo_url: Optional[str] = None
+    reason: ContentReportReason
+    details: Optional[str] = Field(None, max_length=1000)
+
+
+class ContentReport(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    adventure_id: Optional[int] = None
+    photo_url: Optional[str] = None
+    reason: str
+    details: Optional[str] = None
+    status: str
+    created_at: datetime

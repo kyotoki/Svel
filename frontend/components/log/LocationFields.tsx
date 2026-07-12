@@ -88,7 +88,7 @@ export default function LocationFields({
 
           {geocodeStatus === "success" && (
             <View style={styles.geocodeFeedbackRow} accessibilityLiveRegion="polite">
-              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+              <Ionicons name="checkmark-circle-outline" size={16} color={colors.success} />
               <Text style={styles.geocodeSuccessText}>Location found! Mapping coordinates...</Text>
             </View>
           )}

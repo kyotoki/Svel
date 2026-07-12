@@ -5,6 +5,7 @@ import { ActivityIndicator, Text, TextInput, TouchableOpacity } from "react-nati
 
 import { authStyles, PLACEHOLDER_COLOR } from "../../components/auth/authStyles";
 import OceanAuthLayout from "../../components/auth/OceanAuthLayout";
+import SocialSignInButtons from "../../components/auth/SocialSignInButtons";
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -174,6 +175,8 @@ export default function SignInScreen() {
           <Text style={authStyles.buttonText}>Sign In</Text>
         )}
       </TouchableOpacity>
+
+      <SocialSignInButtons onError={setError} />
     </OceanAuthLayout>
   );
 }

@@ -27,6 +27,7 @@ const PAYLOAD: QueuedAdventurePayload = {
   activity_type: "scuba",
   tank_pressure_bar: null,
   gas_mix: null,
+  species: [],
 };
 
 test("enqueueAdventure persists a pending item retrievable via getQueue", async () => {

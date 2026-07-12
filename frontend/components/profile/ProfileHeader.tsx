@@ -1,10 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, gradients, radius, spacing, typography, withOpacity } from "../../constants/theme";
 import { Country } from "../../utils/countries";
+import PhotoThumbnail from "../ui/PhotoThumbnail";
 import SettingsCogButton from "./SettingsCogButton";
+
+// The avatar wrapper is 84x84 with a 3px border and 3px padding on every
+// side (see avatarWrap below) - the actual image fills what's left inside
+// that, not the full 84.
+const AVATAR_IMAGE_SIZE = 84 - 2 * 3 - 2 * 3;
 
 interface ProfileHeaderProps {
   avatarUri: string | null;
@@ -39,17 +45,22 @@ export default function ProfileHeader({
         accessibilityLabel="Change profile photo"
       >
         {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          <PhotoThumbnail
+            uri={avatarUri}
+            size={AVATAR_IMAGE_SIZE}
+            borderRadius={radius.full}
+            fallbackIcon="person-outline"
+          />
         ) : (
           <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <Ionicons name="person" size={30} color={colors.text.inverse} />
+            <Ionicons name="person-outline" size={30} color={colors.text.inverse} />
           </View>
         )}
         <View style={styles.avatarOverlay}>
-          <Ionicons name="camera" size={18} color={colors.text.inverse} />
+          <Ionicons name="camera-outline" size={18} color={colors.text.inverse} />
         </View>
         <View style={styles.avatarEditBadge}>
-          <Ionicons name="camera" size={14} color={colors.secondary} />
+          <Ionicons name="camera-outline" size={14} color={colors.secondary} />
         </View>
       </Pressable>
       <View style={styles.identityCard}>

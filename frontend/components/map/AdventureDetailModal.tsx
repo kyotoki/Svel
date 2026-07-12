@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getActivityTypeOption } from "../../constants/activityTypes";
@@ -7,23 +7,42 @@ import { colors, elevation, radius, spacing, typography, withOpacity } from "../
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { Adventure } from "../../types/adventure";
 import { showAlert } from "../../utils/crossPlatformAlert";
+import { buildLifeList, getAdventuresAtSameLocation } from "../../utils/lifeList";
 import { formatDepth, formatTemperature } from "../../utils/units";
+import SpeciesChip from "../ui/SpeciesChip";
 import WaveSpinner from "../ui/WaveSpinner";
 import PhotoCarousel from "./PhotoCarousel";
 
 interface AdventureDetailModalProps {
   adventure: Adventure | null;
+  /** The user's full adventure list - used only to aggregate species spotted
+   * across every visit to this same location_name (see
+   * utils/lifeList.ts's getAdventuresAtSameLocation), not rendered directly. */
+  allAdventures: Adventure[];
   onClose: () => void;
   onDelete: (adventure: Adventure) => Promise<void>;
 }
 
 export default function AdventureDetailModal({
   adventure,
+  allAdventures,
   onClose,
   onDelete,
 }: AdventureDetailModalProps) {
   const { unitSystem } = usePreferences();
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Hooks can't be called conditionally, so this runs even when `adventure`
+  // is null (the common case - the modal is mounted but hidden) - cheap
+  // enough given typical adventure-list sizes that memoizing it behind a
+  // "skip if closed" branch isn't worth the extra complexity.
+  const locationSpeciesGroups = useMemo(() => {
+    if (!adventure) {
+      return [];
+    }
+    return buildLifeList(getAdventuresAtSameLocation(allAdventures, adventure.location_name));
+  }, [adventure, allAdventures]);
+  const locationSpeciesCount = locationSpeciesGroups.reduce((sum, group) => sum + group.entries.length, 0);
 
   if (!adventure) {
     return null;
@@ -61,7 +80,7 @@ export default function AdventureDetailModal({
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.card} onPress={(e) => e?.stopPropagation()}>
           <View style={styles.photoWrap}>
             <PhotoCarousel photos={adventure.photos} height={180} />
             <Pressable
@@ -71,7 +90,7 @@ export default function AdventureDetailModal({
               accessibilityRole="button"
               accessibilityLabel="Close"
             >
-              <Ionicons name="close" size={20} color={colors.text.inverse} />
+              <Ionicons name="close-outline" size={20} color={colors.text.inverse} />
             </Pressable>
           </View>
 
@@ -127,6 +146,24 @@ export default function AdventureDetailModal({
                         {formatDepth(adventure.tide_height_m, unitSystem)} tide
                       </Text>
                     </View>
+                  )}
+                </View>
+              </>
+            )}
+
+            {locationSpeciesGroups.length > 0 && (
+              <>
+                <Text style={styles.notesLabel}>SPECIES SPOTTED HERE ({locationSpeciesCount})</Text>
+                <View style={styles.speciesRow}>
+                  {locationSpeciesGroups.flatMap((group) =>
+                    group.entries.map((entry) => (
+                      <SpeciesChip
+                        key={entry.species.id}
+                        emoji={entry.species.emoji}
+                        label={entry.species.commonName}
+                        count={entry.sightingCount}
+                      />
+                    ))
                   )}
                 </View>
               </>
@@ -261,6 +298,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+  },
+  speciesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginBottom: spacing.md,
   },
   notesLabel: {
     fontSize: typography.size.caption,

@@ -17,6 +17,7 @@ import OceanAuthLayout from "../components/auth/OceanAuthLayout";
 import { authStyles, PLACEHOLDER_COLOR } from "../components/auth/authStyles";
 import OceanLoadingScreen from "../components/auth/OceanLoadingScreen";
 import CountryPickerModal from "../components/profile/CountryPickerModal";
+import AnimatedPressable from "../components/ui/AnimatedPressable";
 import { ENDPOINTS } from "../constants/api";
 import { useAuthedFetch } from "../utils/api";
 import { countryCodeToFlag, COUNTRIES } from "../utils/countries";
@@ -205,7 +206,7 @@ export default function OnboardingScreen() {
         </Text>
       ) : null}
 
-      <Pressable
+      <AnimatedPressable
         style={[authStyles.button, isSubmitting && authStyles.buttonDisabled]}
         onPress={handleContinue}
         disabled={isSubmitting}
@@ -218,7 +219,7 @@ export default function OnboardingScreen() {
         ) : (
           <Text style={authStyles.buttonText}>Continue</Text>
         )}
-      </Pressable>
+      </AnimatedPressable>
 
       <CountryPickerModal
         visible={isCountryPickerVisible}

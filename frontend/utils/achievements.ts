@@ -1,8 +1,10 @@
 import { getActivityTypeOption } from "../constants/activityTypes";
+import { SPECIES_CATEGORIES } from "../constants/marineLife";
 import { colors } from "../constants/theme";
 import { ActivityType, Adventure } from "../types/adventure";
+import { buildLifeList, countDistinctSpeciesLogged } from "./lifeList";
 import { GearItem } from "./profileStorage";
-import { computeLongestStreakDays } from "./streaks";
+import { computeLongestActiveStretchDays } from "./streaks";
 
 export interface Achievement {
   id: string;
@@ -18,6 +20,7 @@ export interface AchievementGroups {
   scuba: Achievement[];
   snorkel: Achievement[];
   freediving: Achievement[];
+  marineLife: Achievement[];
   certification: Achievement[];
   global: Achievement[];
 }
@@ -113,14 +116,16 @@ const TIME_MILESTONES: Record<ActivityType, { thresholdMinutes: number; name: st
   freediving: { thresholdMinutes: 180, name: "3 Hours of Breath Holds" },
 };
 
-// Longest-ever streak (not current), matching the permanent/monotonic unlock
-// semantics every other achievement in this file already has - see
-// computeLongestStreakDays' own comment for why this data source was chosen
-// over a "current streak" that could lapse.
+// Longest-ever active stretch (not current), matching the permanent/monotonic
+// unlock semantics every other achievement in this file already has - see
+// computeLongestActiveStretchDays' own comment for why this tolerates gaps
+// (a rest day or two on a dive trip) instead of requiring literally-back-to-
+// back calendar days, which made these two tiers all but unreachable for
+// anyone whose diving happens in trips rather than as a daily habit.
 function buildStreakAchievements(adventures: Adventure[]): Achievement[] {
-  const longestStreak = computeLongestStreakDays(adventures);
+  const longestStretch = computeLongestActiveStretchDays(adventures);
   return STREAK_TIERS.map(({ threshold, name }) => {
-    const unlocked = longestStreak >= threshold;
+    const unlocked = longestStretch >= threshold;
     return {
       id: `streak-${threshold}`,
       name,
@@ -128,8 +133,8 @@ function buildStreakAchievements(adventures: Adventure[]): Achievement[] {
       color: colors.achievement.streak,
       unlocked,
       description: unlocked
-        ? `Unlocked! You've logged an adventure ${threshold}+ days in a row.`
-        : `Locked: Log an adventure ${threshold} days in a row (any activity type) to unlock ${name}!`,
+        ? `Unlocked! You stayed active in the water across a ${threshold}+ day stretch.`
+        : `Log adventures across a ${threshold}+ day stretch (any activity type, a rest day here and there is fine) to unlock ${name}.`,
     };
   });
 }
@@ -177,6 +182,84 @@ function buildTimeAchievement(activityType: ActivityType, adventures: Adventure[
       ? `Unlocked! You've logged ${Math.floor(totalMinutes / 60)}+ hours of ${option.label}.`
       : `Locked: Log ${thresholdHours} total hours of ${option.label} to unlock ${name}!`,
   };
+}
+
+// A small, extensible seed set - matching DEPTH_MILESTONES/TIME_MILESTONES's
+// "one meaningful tier per bucket, not a long escalator" philosophy, scaled
+// to marine life's 9 categories (see constants/marineLife.ts, the shared
+// source of truth this whole file reads from rather than redefining its own
+// category list or colors).
+const CATEGORY_SPECIALIST_THRESHOLD = 10;
+const TOTAL_SPECIES_TIERS: { threshold: number; name: string }[] = [
+  { threshold: 25, name: "Marine Naturalist" },
+  { threshold: 50, name: "Marine Life Expert" },
+];
+
+function buildMarineLifeAchievements(adventures: Adventure[]): Achievement[] {
+  const totalSpecies = countDistinctSpeciesLogged(adventures);
+  const groups = buildLifeList(adventures);
+
+  const achievements: Achievement[] = [
+    {
+      id: "marine-life-first-sighting",
+      name: "First Sighting",
+      emoji: "🔍",
+      color: colors.primary,
+      unlocked: totalSpecies >= 1,
+      description:
+        totalSpecies >= 1
+          ? "Unlocked! You've logged your first marine life sighting."
+          : "Locked: Tag a species while logging an adventure to unlock First Sighting!",
+    },
+  ];
+
+  // One "first sighting in this category" achievement per category,
+  // generated from SPECIES_CATEGORIES rather than hardcoded per-category -
+  // adding a 10th category later extends this automatically.
+  for (const categoryOption of SPECIES_CATEGORIES) {
+    const group = groups.find((g) => g.category === categoryOption.value);
+    const count = group?.entries.length ?? 0;
+    const unlocked = count >= 1;
+    achievements.push({
+      id: `marine-life-first-${categoryOption.value}`,
+      name: `First ${categoryOption.label}`,
+      emoji: categoryOption.emoji,
+      color: categoryOption.color,
+      unlocked,
+      description: unlocked
+        ? `Unlocked! You've logged your first ${categoryOption.label.toLowerCase()} sighting.`
+        : `Locked: Tag a species from ${categoryOption.label} to unlock First ${categoryOption.label}!`,
+    });
+  }
+
+  const categorySpecialist = groups.some((g) => g.entries.length >= CATEGORY_SPECIALIST_THRESHOLD);
+  achievements.push({
+    id: "marine-life-category-specialist",
+    name: "Category Specialist",
+    emoji: "🔬",
+    color: colors.primary,
+    unlocked: categorySpecialist,
+    description: categorySpecialist
+      ? `Unlocked! You've logged ${CATEGORY_SPECIALIST_THRESHOLD}+ species in a single category.`
+      : `Locked: Log ${CATEGORY_SPECIALIST_THRESHOLD} species within one category to unlock Category Specialist!`,
+  });
+
+  for (const { threshold, name } of TOTAL_SPECIES_TIERS) {
+    const unlocked = totalSpecies >= threshold;
+    const remaining = threshold - totalSpecies;
+    achievements.push({
+      id: `marine-life-total-${threshold}`,
+      name,
+      emoji: "🐠",
+      color: colors.secondary,
+      unlocked,
+      description: unlocked
+        ? `Unlocked! You've logged ${totalSpecies} distinct species.`
+        : `Locked: Log ${remaining} more distinct ${pluralize(remaining, "species", "species")} to unlock ${name}!`,
+    });
+  }
+
+  return achievements;
 }
 
 // Adventures don't capture a dive start time (the date picker is date-only),
@@ -257,6 +340,7 @@ export function buildAchievements(
   );
 
   const streaks: Achievement[] = buildStreakAchievements(adventures);
+  const marineLife: Achievement[] = buildMarineLifeAchievements(adventures);
 
   const hasCertification = certifications.length > 0;
   const hasEliteCertification = certifications.some((c) => ELITE_CERTIFICATIONS.includes(c));
@@ -330,5 +414,5 @@ export function buildAchievements(
     },
   ];
 
-  return { streaks, scuba, snorkel, freediving, certification, global };
+  return { streaks, scuba, snorkel, freediving, marineLife, certification, global };
 }

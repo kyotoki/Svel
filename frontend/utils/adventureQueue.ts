@@ -24,6 +24,7 @@ export interface QueuedAdventurePayload {
   activity_type: ActivityType;
   tank_pressure_bar: number | null;
   gas_mix: string | null;
+  species: string[];
 }
 
 // A structural subset of ImagePicker.ImagePickerAsset that survives

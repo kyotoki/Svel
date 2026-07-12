@@ -1,19 +1,34 @@
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { colors, radius, spacing, typography } from "../../constants/theme";
 import { countryCodeToFlag, COUNTRIES } from "../../utils/countries";
 import { showAlert } from "../../utils/crossPlatformAlert";
 import { LocalProfileFields } from "../../utils/profileStorage";
+import { UnitSystem } from "../../utils/units";
 import CountryPickerModal from "./CountryPickerModal";
+import SegmentedControl from "./SegmentedControl";
+import SettingsRow from "./SettingsRow";
+
+const UNIT_SYSTEM_OPTIONS = [
+  { value: "metric" as const, label: "Metric" },
+  { value: "imperial" as const, label: "Imperial" },
+];
 
 interface EditProfileModalProps {
   visible: boolean;
   onClose: () => void;
   profile: LocalProfileFields;
   onUpdateProfile: (next: Partial<LocalProfileFields>) => void;
+  gearSubtext: string;
+  onManageGear: () => void;
+  unitSystem: UnitSystem;
+  onUnitSystemChange: (value: UnitSystem) => void;
+  mapStyleLabel: string;
+  onMapPreferences: () => void;
+  onPrivacyControls: () => void;
 }
 
 export default function EditProfileModal({
@@ -21,6 +36,13 @@ export default function EditProfileModal({
   onClose,
   profile,
   onUpdateProfile,
+  gearSubtext,
+  onManageGear,
+  unitSystem,
+  onUnitSystemChange,
+  mapStyleLabel,
+  onMapPreferences,
+  onPrivacyControls,
 }: EditProfileModalProps) {
   const { user } = useUser();
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
@@ -58,14 +80,15 @@ export default function EditProfileModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <Pressable style={styles.backdrop} onPress={handleClose}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.card} onPress={(e) => e?.stopPropagation()}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Edit Profile</Text>
+            <Text style={styles.title}>Account</Text>
             <Pressable onPress={handleClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-              <Ionicons name="close" size={20} color={colors.text.secondary} />
+              <Ionicons name="close-outline" size={20} color={colors.text.secondary} />
             </Pressable>
           </View>
 
+          <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
           <Text style={styles.label}>NAME</Text>
           <View style={styles.row}>
             <TextInput
@@ -117,12 +140,45 @@ export default function EditProfileModal({
               <Text style={styles.countryPlaceholder}>Select your home country</Text>
             )}
             <Ionicons
-              name="chevron-forward"
+              name="chevron-forward-outline"
               size={16}
               color={colors.text.tertiary}
               style={styles.countryChevron}
             />
           </Pressable>
+
+          <Text style={styles.label}>PREFERENCES</Text>
+          <SettingsRow
+            icon="bag-handle-outline"
+            label="Manage Equipment"
+            subtext={gearSubtext}
+            onPress={onManageGear}
+          />
+          <SettingsRow
+            icon="thermometer-outline"
+            label="Unit Measurements"
+            rightElement={
+              <View style={styles.unitToggleWrap}>
+                <SegmentedControl
+                  options={UNIT_SYSTEM_OPTIONS}
+                  value={unitSystem}
+                  onChange={onUnitSystemChange}
+                />
+              </View>
+            }
+          />
+          <SettingsRow
+            icon="map-outline"
+            label="Map Preferences"
+            subtext={mapStyleLabel}
+            onPress={onMapPreferences}
+          />
+          <SettingsRow
+            icon="lock-closed-outline"
+            label="Privacy Controls"
+            subtext="Manage who can see your map & logs"
+            onPress={onPrivacyControls}
+          />
 
           <Pressable
             style={[styles.saveButton, isSavingName && styles.saveButtonDisabled]}
@@ -137,6 +193,7 @@ export default function EditProfileModal({
             onClose={() => setIsCountryPickerVisible(false)}
             onSelect={(code) => onUpdateProfile({ homeCountryCode: code })}
           />
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -165,6 +222,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: spacing.sm,
   },
+  // The PREFERENCES section below made this modal's content routinely taller
+  // than the card's maxHeight - without an inner scroll, the fields further
+  // down (and the Done button) would be unreachable on smaller screens. The
+  // header stays outside this, so it's always pinned above the scrolling
+  // content instead of scrolling away with it.
+  scrollBody: {
+    flexGrow: 0,
+  },
   title: {
     fontSize: typography.size.subtitle,
     fontWeight: typography.weight.bold,
@@ -184,6 +249,11 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     flex: 1,
+    // Without this, a flex child's default min-width is its content's
+    // intrinsic width (a react-native-web/CSS flexbox default), not 0 - a
+    // long last name could grow this box past the row's available space and
+    // push it outside the card's bounds instead of wrapping/shrinking to fit.
+    minWidth: 0,
   },
   input: {
     backgroundColor: colors.surface.page,
@@ -240,6 +310,9 @@ const styles = StyleSheet.create({
   },
   countryChevron: {
     marginLeft: "auto",
+  },
+  unitToggleWrap: {
+    width: 150,
   },
   saveButton: {
     marginTop: spacing.lg,

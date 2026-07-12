@@ -17,7 +17,7 @@ from slowapi.util import get_remote_address
 import models
 from database import engine, run_migrations
 from logging_config import configure_logging
-from routes import adventures, profile, stats, uploads
+from routes import adventures, profile, reports, species, stats, uploads
 from storage import UPLOAD_ROOT
 
 configure_logging()
@@ -63,6 +63,8 @@ async def log_unhandled_exceptions(request: Request, exc: Exception):
 
 app.include_router(adventures.router)
 app.include_router(profile.router)
+app.include_router(reports.router)
+app.include_router(species.router)
 app.include_router(stats.router)
 app.include_router(uploads.router)
 # Registered after the uploads router: Starlette matches routes in

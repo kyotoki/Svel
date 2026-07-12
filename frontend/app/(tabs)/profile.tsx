@@ -1,16 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { LayoutAnimation, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LayoutAnimation, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import AchievementsSection from "../../components/profile/AchievementsSection";
+import AchievementUnlockToast from "../../components/profile/AchievementUnlockToast";
 import AdventureAnalyticsSection from "../../components/profile/AdventureAnalyticsSection";
+import LifeListSection from "../../components/profile/LifeListSection";
 import MediaGallerySection from "../../components/profile/MediaGallerySection";
 import PersonalMapSection from "../../components/profile/PersonalMapSection";
 import ProfileCoreCard from "../../components/profile/ProfileCoreCard";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import ProfileModals from "../../components/profile/ProfileModals";
 import ProfileSkeleton from "../../components/profile/ProfileSkeleton";
+import ProStatsSection from "../../components/profile/ProStatsSection";
 import SettingsRow from "../../components/profile/SettingsRow";
 import PendingSyncBadge from "../../components/ui/PendingSyncBadge";
 import { TAB_BAR_HEIGHT } from "../../constants/layout";
@@ -36,7 +39,21 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <AchievementUnlockToast
+        achievement={profile.currentUnlockCelebration}
+        onDismiss={profile.dismissUnlockCelebration}
+      />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={profile.isRefreshing}
+            onRefresh={profile.refresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         <ProfileHeader
           avatarUri={profile.avatarUri}
           onAvatarPress={profile.handleAvatarPress}
@@ -76,12 +93,21 @@ export default function ProfileScreen() {
               onLogAdventure={handleLogAdventure}
             />
 
+            <ProStatsSection
+              adventures={profile.adventures}
+              unitSystem={profile.unitSystem}
+              isPro={profile.isPro}
+              onRequirePro={profile.openSvelPro}
+            />
+
             <AchievementsSection
               achievements={profile.achievements}
               certificationsLoggedCount={profile.localProfile.certifications.length}
               onSelectAchievement={profile.setSelectedAchievement}
               onOpenCertifications={() => profile.setIsCertificationsModalVisible(true)}
             />
+
+            <LifeListSection adventures={profile.adventures} onLogAdventure={handleLogAdventure} />
 
             <PersonalMapSection
               adventures={profile.adventures}
@@ -97,7 +123,7 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.utilitiesCard}>
-          <SettingsRow icon="add-circle" label="Add New Adventure" onPress={handleLogAdventure} />
+          <SettingsRow icon="add-circle-outline" label="Add New Adventure" onPress={handleLogAdventure} />
         </View>
       </ScrollView>
 
@@ -131,6 +157,7 @@ export default function ProfileScreen() {
         onUnitSystemChange={profile.setUnitSystem}
         onLogOut={profile.handleLogOut}
         appVersion={profile.appVersion}
+        isPro={profile.isPro}
         isSvelProModalVisible={profile.isSvelProModalVisible}
         onCloseSvelProModal={() => profile.setIsSvelProModalVisible(false)}
         isCertificationsModalVisible={profile.isCertificationsModalVisible}

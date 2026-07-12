@@ -135,7 +135,7 @@ export default function OceanMapScreen() {
           {isRefreshing ? (
             <WaveSpinner size="small" color="#0B3D91" />
           ) : (
-            <Ionicons name="refresh" size={18} color="#0B3D91" />
+            <Ionicons name="refresh-outline" size={18} color="#0B3D91" />
           )}
         </Pressable>
       </View>
@@ -175,6 +175,7 @@ export default function OceanMapScreen() {
       <AdventureDetailModal
         key={selectedAdventure?.id ?? "none"}
         adventure={selectedAdventure}
+        allAdventures={adventures}
         onClose={() => setSelectedAdventure(null)}
         onDelete={handleDeleteAdventure}
       />

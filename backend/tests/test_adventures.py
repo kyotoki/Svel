@@ -1,4 +1,5 @@
-from conftest import as_user, client, remove_auth_override, restore_auth_override
+import models
+from conftest import TestingSessionLocal, as_user, client, remove_auth_override, restore_auth_override
 
 
 def create_dive(**overrides):
@@ -136,3 +137,59 @@ def test_limit_and_offset_reject_out_of_range_values():
     as_user("user_a")
     assert client.get("/adventures/", params={"limit": 0}).status_code == 422
     assert client.get("/adventures/", params={"offset": -1}).status_code == 422
+
+
+def test_species_defaults_to_an_empty_list():
+    as_user("user_a")
+    resp = create_dive()
+    assert resp.json()["species"] == []
+
+
+def test_species_round_trips_through_create_and_get():
+    as_user("user_a")
+    resp = create_dive(species=["fish-clownfish", "sharks_rays-whale-shark"])
+    assert resp.status_code == 201
+    assert sorted(resp.json()["species"]) == ["fish-clownfish", "sharks_rays-whale-shark"]
+
+    dive_id = resp.json()["id"]
+    get_resp = client.get(f"/adventures/{dive_id}")
+    assert sorted(get_resp.json()["species"]) == ["fish-clownfish", "sharks_rays-whale-shark"]
+
+
+def test_duplicate_species_ids_are_deduped_preserving_order():
+    as_user("user_a")
+    resp = create_dive(species=["fish-clownfish", "sharks_rays-whale-shark", "fish-clownfish"])
+    assert resp.json()["species"] == ["fish-clownfish", "sharks_rays-whale-shark"]
+
+
+def test_species_ids_are_not_validated_against_a_fixed_list():
+    """species_id is an open string (same choice already made for
+    activity_type) - the backend doesn't own or duplicate the frontend's
+    curated species list, so an id it's never seen before is accepted as-is."""
+    as_user("user_a")
+    resp = create_dive(species=["some-future-species-not-yet-curated"])
+    assert resp.status_code == 201
+    assert resp.json()["species"] == ["some-future-species-not-yet-curated"]
+
+
+def test_deleting_an_adventure_removes_its_species_rows():
+    as_user("user_a")
+    dive_id = create_dive(species=["fish-clownfish"]).json()["id"]
+
+    resp = client.delete(f"/adventures/{dive_id}")
+    assert resp.status_code == 204
+
+    db = TestingSessionLocal()
+    try:
+        assert db.query(models.AdventureSpecies).filter_by(adventure_id=dive_id).count() == 0
+    finally:
+        db.close()
+
+
+def test_two_adventures_can_tag_the_same_species_independently():
+    as_user("user_a")
+    first = create_dive(title="Dive 1", species=["fish-clownfish"]).json()
+    second = create_dive(title="Dive 2", species=["fish-clownfish"]).json()
+
+    assert first["species"] == ["fish-clownfish"]
+    assert second["species"] == ["fish-clownfish"]
