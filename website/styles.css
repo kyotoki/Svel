@@ -136,18 +136,28 @@ img {
   text-align: center;
 }
 
+/* Same badge treatment as the app's sign-in screen (OceanAuthLayout.tsx):
+   a translucent cyan-tinted circle behind the wave mark, not the mark
+   filling the circle edge to edge - the mark is a thin transparent-PNG
+   line drawing, not a solid square image, so it needs a background of its
+   own to read as a badge rather than floating on the gradient by itself. */
 .hero-badge {
   width: 84px;
   height: 84px;
   border-radius: var(--radius-full);
   margin: 0 auto var(--space-lg);
-  overflow: hidden;
+  background: rgba(6, 182, 212, 0.16);
+  border: 1px solid rgba(6, 182, 212, 0.5);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 8px 24px rgba(2, 16, 25, 0.4);
 }
 
 .hero-badge img {
-  width: 100%;
-  height: 100%;
+  width: 34%;
+  height: auto;
 }
 
 .hero h1 {
