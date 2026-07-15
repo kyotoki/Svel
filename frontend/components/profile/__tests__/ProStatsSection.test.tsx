@@ -13,6 +13,7 @@ function makeAdventure(
 ): Adventure {
   return {
     title: "Dive",
+    time_of_day: null,
     created_at: `${overrides.date}T12:00:00.000Z`,
     location_name: "Test Site",
     latitude: 1,

@@ -17,6 +17,16 @@ class Adventure(Base):
     # legacy rows predating this column don't break; the API layer falls back
     # to created_at for those.
     date = Column(String, nullable=True)
+    # The time the adventure actually happened (HH:MM, 24-hour, user-selected
+    # local time - not a real Time column, and deliberately not combined with
+    # `date` into one timestamp column: same "store what the user typed,
+    # never interpret/convert it" convention `date` already uses, and
+    # combining them would mean migrating date's type across every place
+    # that already reads it as a plain string, for no functional benefit -
+    # day-boundary math (see utils/streaks.ts) only ever needs the date part.
+    # Optional: someone who doesn't remember the exact time can still log
+    # without it, same as before this field existed.
+    time_of_day = Column(String, nullable=True)
     # `default` (evaluated in Python at INSERT time) covers rows on databases
     # migrated via ALTER TABLE, where SQLite's ALTER syntax can't attach a
     # CURRENT_TIMESTAMP default to the column; `server_default` handles inserts

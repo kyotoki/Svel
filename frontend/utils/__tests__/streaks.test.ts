@@ -1,12 +1,13 @@
 import { Adventure } from "../../types/adventure";
 import { computeDaysSinceLastLog, computeLongestActiveStretchDays, getMostRecentAdventureDate } from "../streaks";
 
-function makeAdventure(id: number, date: string): Adventure {
+function makeAdventure(id: number, date: string, createdAt?: string): Adventure {
   return {
     id,
     title: "Dive",
     date,
-    created_at: `${date}T12:00:00.000Z`,
+    time_of_day: null,
+    created_at: createdAt ?? `${date}T12:00:00.000Z`,
     location_name: "Test Site",
     latitude: 1,
     longitude: 2,
@@ -87,6 +88,36 @@ describe("computeLongestActiveStretchDays", () => {
       makeAdventure(3, "2026-07-02"),
     ];
     expect(computeLongestActiveStretchDays(adventures)).toBe(2);
+  });
+
+  // The actual scenario from Month 4b's time-of-day feature: someone dives
+  // earlier in the day, then doesn't get around to logging it until late
+  // that night (or past midnight, into the next calendar day by wall-clock
+  // time) - created_at reflects when they typed it in, not when they dove.
+  // This must still attribute to the day they actually dove (`date`), or a
+  // late log entry could silently break what would otherwise be a
+  // continuous streak.
+  test("a late-night log entry attributes to the dive's actual date, not the record's created_at", () => {
+    const adventures = [
+      makeAdventure(1, "2026-07-13"),
+      // Dove on the 14th, but didn't log it until 2am on the 15th - a
+      // realistic "logged it before bed, after midnight" scenario.
+      makeAdventure(2, "2026-07-14", "2026-07-15T02:00:00.000Z"),
+      makeAdventure(3, "2026-07-15"),
+    ];
+    // If this incorrectly grouped adventure 2 under the 15th (created_at's
+    // date) instead of the 14th (its own date), two adventures would land
+    // on the 15th and none on the 14th, breaking what is actually a clean
+    // 3-day consecutive stretch (13th, 14th, 15th) into something shorter.
+    expect(computeLongestActiveStretchDays(adventures)).toBe(3);
+  });
+
+  test("getMostRecentAdventureDate also uses date, not created_at", () => {
+    const adventures = [
+      makeAdventure(1, "2026-07-14", "2026-07-15T02:00:00.000Z"),
+    ];
+    // Not "2026-07-15", which is what created_at's date would give.
+    expect(getMostRecentAdventureDate(adventures)).toBe("2026-07-14");
   });
 });
 

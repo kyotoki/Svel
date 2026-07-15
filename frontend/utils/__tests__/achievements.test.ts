@@ -4,6 +4,7 @@ import { buildAchievements } from "../achievements";
 function makeAdventure(overrides: Partial<Adventure> & Pick<Adventure, "id" | "date" | "activity_type">): Adventure {
   return {
     title: "Dive",
+    time_of_day: null,
     created_at: `${overrides.date}T12:00:00.000Z`,
     location_name: "Test Site",
     latitude: 1,
@@ -87,5 +88,63 @@ describe("buildAchievements - per-activity depth/time milestones", () => {
 
     expect(snorkel.find((a) => a.id === "snorkeling-depth-5")?.unlocked).toBe(false);
     expect(freediving.find((a) => a.id === "freediving-depth-20")?.unlocked).toBe(false);
+  });
+});
+
+describe("buildAchievements - Night Owl (created_at vs time_of_day)", () => {
+  // The actual bug fixed by Month 4b's time-of-day field: previously "night"
+  // could only be read from created_at (when the entry was typed in), so a
+  // daytime dive logged late at night would incorrectly unlock Night Owl,
+  // and a genuine night dive logged the next morning would incorrectly miss
+  // it. time_of_day (the dive's own logged time), when set, is now the
+  // real signal - created_at is only a fallback for adventures with no
+  // time set at all.
+  test("a daytime dive logged late at night does NOT unlock Night Owl", () => {
+    const adventures = [
+      makeAdventure({
+        id: 1,
+        date: "2026-07-01",
+        activity_type: "scuba",
+        time_of_day: "14:00", // actually dove at 2pm
+        created_at: "2026-07-01T23:30:00.000Z", // but typed it in at 11:30pm
+      }),
+    ];
+    const { global } = buildAchievements(adventures, [], []);
+    expect(global.find((a) => a.id === "global-nightowl")?.unlocked).toBe(false);
+  });
+
+  test("a genuine night dive logged the next morning DOES unlock Night Owl", () => {
+    const adventures = [
+      makeAdventure({
+        id: 1,
+        date: "2026-07-01",
+        activity_type: "scuba",
+        time_of_day: "20:00", // actually dove at 8pm
+        created_at: "2026-07-02T09:00:00.000Z", // but typed it in the next morning
+      }),
+    ];
+    const { global } = buildAchievements(adventures, [], []);
+    expect(global.find((a) => a.id === "global-nightowl")?.unlocked).toBe(true);
+  });
+
+  test("falls back to created_at's hour when no time_of_day was set (legacy/untimed entries)", () => {
+    // isLoggedAtNight reads created_at via local getHours(), so this is
+    // built from local Y/M/D/H args (not a hardcoded UTC ISO string, which
+    // would parse back to a different local hour - and therefore a
+    // different night/day verdict - depending on the test runner's
+    // timezone; same reasoning as streaks.test.ts's computeDaysSinceLastLog
+    // tests).
+    const lateNightLocal = new Date(2026, 6, 1, 23, 30).toISOString();
+    const adventures = [
+      makeAdventure({
+        id: 1,
+        date: "2026-07-01",
+        activity_type: "scuba",
+        time_of_day: null,
+        created_at: lateNightLocal,
+      }),
+    ];
+    const { global } = buildAchievements(adventures, [], []);
+    expect(global.find((a) => a.id === "global-nightowl")?.unlocked).toBe(true);
   });
 });

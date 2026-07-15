@@ -22,6 +22,7 @@ function makeAdventure(id: number, date: string): Adventure {
     id,
     title: "Dive",
     date,
+    time_of_day: null,
     created_at: `${date}T12:00:00.000Z`,
     location_name: "Test Site",
     latitude: 1,

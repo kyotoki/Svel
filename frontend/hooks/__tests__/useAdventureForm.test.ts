@@ -102,6 +102,73 @@ test("logs an adventure successfully when online", async () => {
   expect(await getQueue()).toHaveLength(0);
 });
 
+test("adventureTime defaults to now and is sent as HH:MM in the payload", async () => {
+  mockAuthedFetch.mockResolvedValue({ ok: true, json: async () => ({ id: 1 }) });
+
+  const { result } = renderHook(() => useAdventureForm());
+  fillValidForm(result.current);
+
+  expect(result.current.adventureTime).not.toBeNull();
+
+  await act(async () => {
+    await result.current.handleSubmit();
+  });
+
+  const [, init] = mockAuthedFetch.mock.calls[0];
+  const body = JSON.parse(init.body);
+  expect(body.time_of_day).toMatch(/^\d{2}:\d{2}$/);
+});
+
+test("time_of_day is optional - clearing it submits null, not an error", async () => {
+  mockAuthedFetch.mockResolvedValue({ ok: true, json: async () => ({ id: 1 }) });
+
+  const { result } = renderHook(() => useAdventureForm());
+  fillValidForm(result.current);
+
+  act(() => {
+    result.current.setAdventureTime(null);
+  });
+  expect(result.current.adventureTime).toBeNull();
+
+  await act(async () => {
+    await result.current.handleSubmit();
+  });
+
+  const [, init] = mockAuthedFetch.mock.calls[0];
+  const body = JSON.parse(init.body);
+  expect(body.time_of_day).toBeNull();
+  expect(showAlert).toHaveBeenCalledWith("Adventure logged", expect.any(String), expect.any(Array));
+});
+
+test("changing the date away from today clears the defaulted time (backfilling a past day)", () => {
+  const { result } = renderHook(() => useAdventureForm());
+  expect(result.current.adventureTime).not.toBeNull();
+
+  act(() => {
+    result.current.setAdventureDate(new Date(2020, 0, 1));
+  });
+
+  expect(result.current.adventureTime).toBeNull();
+});
+
+test("changing the date but staying on today does not clear an explicitly-set time", () => {
+  const { result } = renderHook(() => useAdventureForm());
+
+  const explicitTime = new Date();
+  explicitTime.setHours(9, 15, 0, 0);
+  act(() => {
+    result.current.setAdventureTime(explicitTime);
+  });
+
+  act(() => {
+    // Re-picking today (e.g. via the date picker) shouldn't wipe out a time
+    // the user already set for that same day.
+    result.current.setAdventureDate(new Date());
+  });
+
+  expect(result.current.adventureTime).not.toBeNull();
+});
+
 test("logs a freediving adventure, keeping depth but nulling scuba-only fields", async () => {
   mockAuthedFetch.mockResolvedValue({ ok: true, json: async () => ({ id: 1 }) });
 
@@ -190,6 +257,7 @@ test("shows a clear message and leaves the form filled when the offline queue is
   const filler: QueuedAdventurePayload = {
     title: "Filler",
     date: "2026-07-01",
+    time_of_day: null,
     location_name: "Somewhere",
     latitude: 0,
     longitude: 0,

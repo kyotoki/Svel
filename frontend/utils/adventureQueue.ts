@@ -33,6 +33,7 @@ export const MAX_QUEUE_SIZE = 150;
 export interface QueuedAdventurePayload {
   title: string;
   date: string;
+  time_of_day: string | null;
   location_name: string;
   latitude: number;
   longitude: number;

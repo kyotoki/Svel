@@ -8,6 +8,9 @@ export interface Adventure {
   id: number;
   title: string;
   date: string;
+  // HH:MM, 24-hour, local time as entered - optional (see
+  // hooks/useAdventureForm.ts and components/log/TimeOfAdventureField.tsx).
+  time_of_day: string | null;
   created_at: string;
   location_name: string;
   latitude: number;

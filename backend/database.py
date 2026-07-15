@@ -74,6 +74,9 @@ def run_migrations():
         if existing_columns and "date" not in existing_columns:
             conn.exec_driver_sql("ALTER TABLE adventures ADD COLUMN date TEXT")
             conn.commit()
+        if existing_columns and "time_of_day" not in existing_columns:
+            conn.exec_driver_sql("ALTER TABLE adventures ADD COLUMN time_of_day TEXT")
+            conn.commit()
         if existing_columns and "created_at" not in existing_columns:
             # SQLite's ALTER TABLE rejects a non-constant default (e.g.
             # CURRENT_TIMESTAMP) on ADD COLUMN, so the column is added plain

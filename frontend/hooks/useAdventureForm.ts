@@ -13,7 +13,7 @@ import { useAdventureSync } from "../utils/useAdventureSync";
 import { AnalyticsEvents, isFirstOccurrence, track } from "../utils/analytics";
 import { useAuthedFetch } from "../utils/api";
 import { showAlert } from "../utils/crossPlatformAlert";
-import { formatDateISO } from "../utils/date";
+import { formatDateISO, formatTimeHHMM } from "../utils/date";
 import { isAuthError, QueueFullError, REAUTH_MESSAGE, ServerRejectedError } from "../utils/errors";
 import { geocodeLocationName } from "../utils/geocode";
 import { extendStreakReminderFromLog } from "../utils/notifications";
@@ -57,10 +57,22 @@ function tracksDepthFor(activityType: ActivityType): boolean {
   return activityType === "scuba" || activityType === "freediving";
 }
 
+// Same calendar day, compared via local Y/M/D - "does defaulting/keeping
+// the time field to now still make sense for whatever date is currently
+// selected" is a local-date question, not an instant comparison.
+function isSameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 function buildPayload(
   form: AdventureFormState,
   activityType: ActivityType,
   adventureDate: Date,
+  adventureTime: Date | null,
   isScuba: boolean,
   isImperial: boolean,
   speciesIds: string[]
@@ -69,6 +81,7 @@ function buildPayload(
   return {
     title: form.title.trim(),
     date: formatDateISO(adventureDate),
+    time_of_day: adventureTime ? formatTimeHHMM(adventureTime) : null,
     location_name: form.location_name.trim(),
     latitude: Number(form.latitude),
     longitude: Number(form.longitude),
@@ -101,6 +114,13 @@ export function useAdventureForm() {
 
   const [activityType, setActivityType] = useState<ActivityType>("scuba");
   const [adventureDate, setAdventureDate] = useState<Date>(new Date());
+  // Defaults to "now" - matches adventureDate's own default of today, the
+  // common case of logging right after diving. Cleared back to null
+  // whenever the date is changed away from today (see handleAdventureDateChange
+  // below): "now" is meaningless as a default for a backfilled past day, and
+  // showing it there would misleadingly suggest a real remembered time.
+  // Always fully editable/clearable regardless - see TimeOfAdventureField.
+  const [adventureTime, setAdventureTime] = useState<Date | null>(new Date());
   const [form, setForm] = useState<AdventureFormState>(INITIAL_FORM);
   const [photos, setPhotos] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [speciesIds, setSpeciesIds] = useState<string[]>([]);
@@ -118,6 +138,17 @@ export function useAdventureForm() {
 
   const handleActivityTypeChange = (next: ActivityType) => {
     setActivityType(next);
+  };
+
+  const handleAdventureDateChange = (next: Date) => {
+    setAdventureDate(next);
+    if (!isSameLocalDay(next, new Date())) {
+      // Backfilling a past day - "now" is not a meaningful default time for
+      // it, so clear rather than leave a stale current-time value sitting
+      // there looking like a real remembered detail. Still fully editable -
+      // the user can pick a real time for that day if they remember it.
+      setAdventureTime(null);
+    }
   };
 
   const updateField = (field: keyof AdventureFormState, value: string) => {
@@ -294,6 +325,7 @@ export function useAdventureForm() {
     setSpeciesIds([]);
     setActivityType("scuba");
     setAdventureDate(new Date());
+    setAdventureTime(new Date());
     setLocationMode("coordinates");
     setLocationQuery("");
     setGeocodeStatus("idle");
@@ -363,7 +395,15 @@ export function useAdventureForm() {
       return;
     }
 
-    const payload = buildPayload(form, activityType, adventureDate, isScuba, isImperial, speciesIds);
+    const payload = buildPayload(
+      form,
+      activityType,
+      adventureDate,
+      adventureTime,
+      isScuba,
+      isImperial,
+      speciesIds
+    );
 
     const netState = await NetInfo.fetch();
     if (netState.isConnected === false) {
@@ -433,6 +473,7 @@ export function useAdventureForm() {
   return {
     activityType,
     adventureDate,
+    adventureTime,
     form,
     photos,
     maxPhotos,
@@ -448,7 +489,8 @@ export function useAdventureForm() {
     geocodeStatus,
     isGeocoding,
     locationQueryError,
-    setAdventureDate,
+    setAdventureDate: handleAdventureDateChange,
+    setAdventureTime,
     handleActivityTypeChange,
     updateField,
     onToggleLocationMode,

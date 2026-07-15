@@ -24,6 +24,12 @@ class AdventureBase(BaseModel):
     activity_type: str = Field("scuba", min_length=1, max_length=30)
     tank_pressure_bar: Optional[float] = Field(None, ge=0)
     gas_mix: Optional[str] = Field(None, max_length=50)
+    # HH:MM, 24-hour, stored/returned exactly as entered - see
+    # models.py's Adventure.time_of_day for why this isn't combined with
+    # `date` into one timestamp. Optional in both directions (unlike `date`,
+    # which AdventureCreate defaults to today): no time set is a normal,
+    # fully-supported state, not a legacy-data fallback case.
+    time_of_day: Optional[str] = None
     # A list of species ids (e.g. "fish-clownfish") from the frontend's
     # constants/marineLife.ts - same "open string, not a backend enum" choice
     # as activity_type above, and the same before-validator flattening shape
@@ -37,11 +43,22 @@ class AdventureBase(BaseModel):
             return value.strip().lower()
         return value
 
-    @field_validator("tank_pressure_bar", "gas_mix", mode="before")
+    @field_validator("tank_pressure_bar", "gas_mix", "time_of_day", mode="before")
     @classmethod
     def blank_to_none(cls, value):
         if isinstance(value, str) and value.strip() == "":
             return None
+        return value
+
+    @field_validator("time_of_day")
+    @classmethod
+    def validate_time_format(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        try:
+            datetime.strptime(value, "%H:%M")
+        except ValueError as exc:
+            raise ValueError("time_of_day must be formatted as HH:MM (24-hour)") from exc
         return value
 
     @field_validator("photos", mode="before")

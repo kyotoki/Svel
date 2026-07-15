@@ -9,6 +9,7 @@ import FormField from "../../components/log/FormField";
 import LocationFields from "../../components/log/LocationFields";
 import PhotoPicker from "../../components/log/PhotoPicker";
 import SpeciesPicker from "../../components/log/SpeciesPicker";
+import TimeOfAdventureField from "../../components/log/TimeOfAdventureField";
 import AnimatedPressable from "../../components/ui/AnimatedPressable";
 import WaveSpinner from "../../components/ui/WaveSpinner";
 import { TAB_BAR_HEIGHT } from "../../constants/layout";
@@ -51,6 +52,7 @@ export default function LogAdventureScreen() {
           <ActivityTypePicker value={form.activityType} onChange={handleActivityTypeChange} />
 
           <DateOfAdventureField value={form.adventureDate} onChange={form.setAdventureDate} />
+          <TimeOfAdventureField value={form.adventureTime} onChange={form.setAdventureTime} />
 
           <Text style={styles.sectionLabel}>DIVE DETAILS</Text>
 

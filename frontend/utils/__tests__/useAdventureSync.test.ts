@@ -14,6 +14,7 @@ jest.mock("../api", () => ({
 const PAYLOAD: QueuedAdventurePayload = {
   title: "Reef Dive",
   date: "2026-07-01",
+  time_of_day: null,
   location_name: "Blue Hole",
   latitude: 1,
   longitude: 2,

@@ -42,6 +42,7 @@ function makeAdventure(id: number, species: string[]): Adventure {
     id,
     title: `Dive ${id}`,
     date: "2026-07-01",
+    time_of_day: null,
     created_at: "2026-07-01T12:00:00.000Z",
     location_name: `Site ${id}`,
     latitude: id,

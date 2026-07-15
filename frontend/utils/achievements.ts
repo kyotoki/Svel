@@ -262,12 +262,20 @@ function buildMarineLifeAchievements(adventures: Adventure[]): Achievement[] {
   return achievements;
 }
 
-// Adventures don't capture a dive start time (the date picker is date-only),
-// so "night" is read from created_at - when the entry was logged - as the
-// closest available real signal, the same way stats.py's "countries_visited"
-// is documented as a distinct-location-name proxy rather than a true
-// geocoded country.
+// Prefers the adventure's own logged time_of_day (HH:MM, added Month 4b)
+// when the user set one - the real signal for "was this dive at night."
+// Falls back to created_at's hour (when the entry was logged, not when the
+// dive happened) only for adventures with no time set - either logged
+// before this field existed, or where the user didn't remember/care to
+// specify one. That fallback is a known proxy, not a guarantee: someone
+// logging a daytime dive late at night would still incorrectly read as a
+// night dive under it, exactly the bug this field exists to fix going
+// forward.
 function isLoggedAtNight(adventure: Adventure): boolean {
+  if (adventure.time_of_day) {
+    const [hour] = adventure.time_of_day.split(":").map(Number);
+    return hour >= 18 || hour < 6;
+  }
   const hour = new Date(adventure.created_at).getHours();
   return hour >= 18 || hour < 6;
 }

@@ -193,3 +193,72 @@ def test_two_adventures_can_tag_the_same_species_independently():
 
     assert first["species"] == ["fish-clownfish"]
     assert second["species"] == ["fish-clownfish"]
+
+
+def test_time_of_day_round_trips_when_provided():
+    as_user("user_a")
+    resp = create_dive(time_of_day="17:30")
+    assert resp.status_code == 201
+    assert resp.json()["time_of_day"] == "17:30"
+
+    dive_id = resp.json()["id"]
+    get_resp = client.get(f"/adventures/{dive_id}")
+    assert get_resp.json()["time_of_day"] == "17:30"
+
+
+def test_time_of_day_is_optional_and_defaults_to_null():
+    as_user("user_a")
+    resp = create_dive()
+    assert resp.status_code == 201
+    assert resp.json()["time_of_day"] is None
+
+
+def test_blank_time_of_day_is_stored_as_null_not_an_empty_string():
+    as_user("user_a")
+    resp = create_dive(time_of_day="")
+    assert resp.status_code == 201
+    assert resp.json()["time_of_day"] is None
+
+
+def test_time_of_day_rejects_an_invalid_format():
+    as_user("user_a")
+    resp = create_dive(time_of_day="5:30 PM")
+    assert resp.status_code == 422
+
+
+def test_time_of_day_rejects_an_out_of_range_value():
+    as_user("user_a")
+    resp = create_dive(time_of_day="25:99")
+    assert resp.status_code == 422
+
+
+def test_existing_adventures_without_a_time_still_work_after_the_migration():
+    # Simulates a pre-existing row from before time_of_day existed: written
+    # directly via the ORM (bypassing the API, which would always at least
+    # send time_of_day=None) with the column simply absent from the insert,
+    # the same state a real migrated row is in.
+    as_user("user_a")
+    db = TestingSessionLocal()
+    try:
+        adventure = models.Adventure(
+            user_id="user_a",
+            title="Legacy Dive",
+            date="2026-01-01",
+            location_name="Old Reef",
+            latitude=1.0,
+            longitude=2.0,
+            max_depth_meters=10.0,
+            duration_minutes=30,
+            activity_type="scuba",
+        )
+        db.add(adventure)
+        db.commit()
+        db.refresh(adventure)
+        dive_id = adventure.id
+    finally:
+        db.close()
+
+    resp = client.get(f"/adventures/{dive_id}")
+    assert resp.status_code == 200
+    assert resp.json()["time_of_day"] is None
+    assert resp.json()["date"] == "2026-01-01"
