@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -120,14 +120,25 @@ class ActivityStats(BaseModel):
     favorite_site: Optional[str] = None
 
 
+class GearItem(BaseModel):
+    id: str
+    name: str
+    type: str
+
+
 class UserProfileBase(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     nickname: Optional[str] = Field(None, max_length=100)
     country_code: Optional[str] = Field(None, max_length=2)
     photo_url: Optional[str] = None
+    # 280 matches the frontend's EditProfileModal maxLength - enforced here
+    # too since the API is the actual trust boundary, not the client.
+    bio: Optional[str] = Field(None, max_length=280)
+    certifications: List[str] = Field(default_factory=list)
+    gear: List[GearItem] = Field(default_factory=list)
 
-    @field_validator("nickname", "country_code", "photo_url", mode="before")
+    @field_validator("nickname", "country_code", "photo_url", "bio", mode="before")
     @classmethod
     def blank_to_none(cls, value):
         if isinstance(value, str) and value.strip() == "":
@@ -140,8 +151,6 @@ class UserProfileCreate(UserProfileBase):
 
 
 class UserProfile(UserProfileBase):
-    model_config = ConfigDict(from_attributes=True)
-
     user_id: str
 
 

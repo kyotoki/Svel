@@ -22,11 +22,14 @@ export const DEFAULT_LOCAL_PROFILE: LocalProfileFields = {
   photoUri: null,
 };
 
-// Bio / home country / certifications / gear aren't part of the backend
-// adventure log (there's no user-profile table - user identity comes entirely
-// from Clerk), so they're kept as on-device preferences rather than a new
-// backend surface. Keyed per Clerk user id so switching accounts on the same
-// device doesn't leak one user's profile into another's.
+// This is now a cache, not the source of truth: bio/homeCountryCode/
+// certifications/gear/photoUri all live on the backend's user_profiles
+// table (see routes/profile.py) as of Month 4b - hooks/useProfileData.ts
+// fetches from there and writes through on every edit, falling back to
+// (and reconciling with) this local copy for offline resilience and for
+// migrating any pre-Month-4b local-only data up to the backend once. Kept
+// keyed per Clerk user id so switching accounts on the same device doesn't
+// leak one user's cached profile into another's.
 function storageKey(userId: string): string {
   return `svel_profile_${userId}`;
 }

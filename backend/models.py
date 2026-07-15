@@ -190,7 +190,8 @@ class ContentReport(Base):
 
 
 class UserProfile(Base):
-    """One-time onboarding profile fields, keyed by Clerk user id.
+    """Onboarding profile fields plus ongoing profile data, keyed by Clerk
+    user id.
 
     Absence of a row for a given user_id is the signal that they haven't
     completed onboarding yet (see routes/profile.py).
@@ -203,7 +204,22 @@ class UserProfile(Base):
     last_name = Column(String, nullable=False)
     nickname = Column(String, nullable=True)
     country_code = Column(String, nullable=True)
+    # An R2/S3 URL (see storage.py), same as adventure photos - never a raw
+    # device URI, so it's actually reachable from a different device.
     photo_url = Column(String, nullable=True)
+    # bio/certifications/gear were device-local only until Month 4b (see
+    # utils/profileStorage.ts on the frontend) - a real, confirmed
+    # multi-device gap, since a user setting these on one device saw them
+    # blank on another. certifications/gear are JSON-serialized lists
+    # (matching SpeciesLocationCache.payload_json's convention elsewhere in
+    # this file: raw Text, serialized/deserialized explicitly in
+    # routes/profile.py, not a hybrid property) rather than normalized
+    # tables, since they're small, always read/written as a whole list, and
+    # never queried by their own fields. All nullable/backward-compatible -
+    # existing profiles just read back as empty until next edited.
+    bio = Column(Text, nullable=True)
+    certifications = Column(Text, nullable=True)
+    gear = Column(Text, nullable=True)
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), server_default=func.now()
     )

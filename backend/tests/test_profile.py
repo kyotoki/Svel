@@ -74,6 +74,78 @@ def test_put_updates_only_the_authenticated_users_own_profile():
     assert resp.json()["first_name"] == "A-updated"
 
 
+def test_bio_certifications_gear_and_home_country_round_trip():
+    as_user("user_a")
+    resp = upsert_profile(
+        bio="Wreck diving enthusiast",
+        certifications=["PADI Open Water", "PADI Advanced"],
+        gear=[{"id": "1", "name": "Cressi Fins", "type": "fins"}],
+        country_code="US",
+        photo_url="https://pub-test.r2.dev/user_a/avatar.jpg",
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["bio"] == "Wreck diving enthusiast"
+    assert body["certifications"] == ["PADI Open Water", "PADI Advanced"]
+    assert body["gear"] == [{"id": "1", "name": "Cressi Fins", "type": "fins"}]
+    assert body["country_code"] == "US"
+    assert body["photo_url"] == "https://pub-test.r2.dev/user_a/avatar.jpg"
+
+
+def test_profile_fields_set_on_one_session_are_visible_from_a_different_session_for_the_same_account():
+    # Simulates two devices/sessions for the same account: one client.put
+    # call (device A writes), then a wholly separate client.get call
+    # (device B reads) - no shared state between them beyond the backend
+    # itself, the same standard used for the adventures/profile-edit
+    # multi-device audit tests.
+    as_user("user_a")
+    upsert_profile(
+        bio="Wreck diving enthusiast",
+        certifications=["PADI Open Water"],
+        gear=[{"id": "1", "name": "Cressi Fins", "type": "fins"}],
+        country_code="US",
+        photo_url="https://pub-test.r2.dev/user_a/avatar.jpg",
+    )
+
+    # A fresh read, as if from a second device that never made the write
+    # above - the backend, not any client-side cache, is what's being
+    # exercised here.
+    resp = client.get("/profile/me")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["bio"] == "Wreck diving enthusiast"
+    assert body["certifications"] == ["PADI Open Water"]
+    assert body["gear"] == [{"id": "1", "name": "Cressi Fins", "type": "fins"}]
+    assert body["country_code"] == "US"
+    assert body["photo_url"] == "https://pub-test.r2.dev/user_a/avatar.jpg"
+
+
+def test_certifications_and_gear_default_to_empty_lists_not_null():
+    as_user("user_a")
+    resp = upsert_profile()
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["bio"] is None
+    assert body["certifications"] == []
+    assert body["gear"] == []
+
+
+def test_updating_one_field_does_not_wipe_out_previously_set_fields_when_resent():
+    # PUT is a full replace, not a patch - this test exists to lock in that
+    # a caller resending the full current state (as the frontend now must)
+    # correctly preserves it, not to test partial-update semantics that
+    # don't exist here.
+    as_user("user_a")
+    upsert_profile(bio="Original bio", certifications=["PADI Open Water"])
+
+    resp = upsert_profile(bio="Original bio", certifications=["PADI Open Water"], country_code="US")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["bio"] == "Original bio"
+    assert body["certifications"] == ["PADI Open Water"]
+    assert body["country_code"] == "US"
+
+
 def test_unauthenticated_requests_are_rejected():
     remove_auth_override()
     try:

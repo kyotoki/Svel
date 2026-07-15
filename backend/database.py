@@ -105,3 +105,11 @@ def run_migrations():
                 """
             )
             conn.commit()
+
+        profile_columns = {
+            row[1] for row in conn.exec_driver_sql("PRAGMA table_info(user_profiles)")
+        }
+        for column in ("bio", "certifications", "gear"):
+            if profile_columns and column not in profile_columns:
+                conn.exec_driver_sql(f"ALTER TABLE user_profiles ADD COLUMN {column} TEXT")
+                conn.commit()

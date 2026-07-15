@@ -20,6 +20,7 @@ import {
   saveLocalProfile,
 } from "../utils/profileStorage";
 import { useIsProUser } from "../utils/proTier";
+import { uploadPhoto } from "../utils/uploadPhoto";
 
 function flattenAchievementGroups(groups: AchievementGroups): Achievement[] {
   return [
@@ -30,6 +31,45 @@ function flattenAchievementGroups(groups: AchievementGroups): Achievement[] {
     ...groups.certification,
     ...groups.global,
   ];
+}
+
+// The backend's full schemas.UserProfile shape (routes/profile.py) - a
+// superset of LocalProfileFields, since first_name/last_name/nickname are
+// backend-only fields the main app UI never surfaces after onboarding
+// (EditProfileModal writes name changes straight to Clerk instead - see its
+// handleClose). Kept in a ref (not state) because every write-through PUT
+// needs the CURRENT backend values for those fields so it doesn't blank
+// them out - PUT is a full replace, not a patch (see routes/profile.py).
+interface BackendProfile {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  nickname: string | null;
+  country_code: string | null;
+  photo_url: string | null;
+  bio: string | null;
+  certifications: string[];
+  gear: LocalProfileFields["gear"];
+}
+
+function backendToLocalFields(profile: BackendProfile): LocalProfileFields {
+  return {
+    bio: profile.bio ?? "",
+    homeCountryCode: profile.country_code,
+    certifications: profile.certifications,
+    gear: profile.gear,
+    photoUri: profile.photo_url,
+  };
+}
+
+function isLocalProfileEmpty(fields: LocalProfileFields): boolean {
+  return (
+    !fields.bio &&
+    !fields.homeCountryCode &&
+    fields.certifications.length === 0 &&
+    fields.gear.length === 0 &&
+    !fields.photoUri
+  );
 }
 
 export function useProfileData() {
@@ -61,21 +101,130 @@ export function useProfileData() {
   const [isCertificationsModalVisible, setIsCertificationsModalVisible] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
 
+  // The backend's current view of this user's profile, used as the base
+  // for every write-through PUT (see syncProfileToBackend) so a change to
+  // one field (e.g. toggling a certification) doesn't blank out fields
+  // this hook doesn't otherwise track, like nickname. Ref, not state - it
+  // doesn't drive any render itself, only what the next PUT sends.
+  const backendProfileRef = useRef<BackendProfile | null>(null);
+
   useEffect(() => {
     if (!user?.id) {
       return;
     }
     let cancelled = false;
-    loadLocalProfile(user.id).then((fields) => {
-      if (!cancelled) {
-        setLocalProfile(fields);
-        setIsProfileLoaded(true);
+
+    (async () => {
+      // Paint immediately from whatever's cached locally (works offline,
+      // avoids a blank flash) - reconciled against the backend below once
+      // that responds.
+      const local = await loadLocalProfile(user.id);
+      if (cancelled) {
+        return;
       }
-    });
+      setLocalProfile(local);
+
+      try {
+        const response = await authedFetch(ENDPOINTS.profile);
+        if (cancelled) {
+          return;
+        }
+        if (response.status === 404) {
+          // No backend row - shouldn't normally happen (onboarding always
+          // creates one before a user reaches the main app), so this is
+          // treated as a genuine absence rather than something to paper
+          // over by inventing first_name/last_name to create one here.
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(`Server responded with status ${response.status}`);
+        }
+        const backend: BackendProfile = await response.json();
+        const backendFields = backendToLocalFields(backend);
+
+        if (isLocalProfileEmpty(backendFields) && !isLocalProfileEmpty(local)) {
+          // One-time migration: this device has real local data from
+          // before backend sync existed (Month 4b) and the backend has
+          // never seen it - push it up rather than silently discarding it
+          // in favor of the backend's (empty) values.
+          const migrateResponse = await authedFetch(ENDPOINTS.profile, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              first_name: backend.first_name,
+              last_name: backend.last_name,
+              nickname: backend.nickname,
+              country_code: local.homeCountryCode,
+              photo_url: local.photoUri,
+              bio: local.bio,
+              certifications: local.certifications,
+              gear: local.gear,
+            }),
+          });
+          if (!migrateResponse.ok) {
+            throw new Error(`Server responded with status ${migrateResponse.status}`);
+          }
+          const migrated: BackendProfile = await migrateResponse.json();
+          backendProfileRef.current = migrated;
+          setLocalProfile(local);
+          await saveLocalProfile(user.id, local);
+        } else {
+          backendProfileRef.current = backend;
+          setLocalProfile(backendFields);
+          await saveLocalProfile(user.id, backendFields);
+        }
+      } catch {
+        // Offline or server unreachable - the local cache already painted
+        // above stands in; backendProfileRef staying null means any edit
+        // made before the next successful load saves locally only (see
+        // syncProfileToBackend) rather than risking a PUT that clobbers
+        // fields this hook never fetched.
+      } finally {
+        if (!cancelled) {
+          setIsProfileLoaded(true);
+        }
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, authedFetch]);
+
+  const syncProfileToBackend = useCallback(
+    async (fields: LocalProfileFields) => {
+      const current = backendProfileRef.current;
+      if (!current) {
+        return;
+      }
+      try {
+        const response = await authedFetch(ENDPOINTS.profile, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            first_name: current.first_name,
+            last_name: current.last_name,
+            nickname: current.nickname,
+            country_code: fields.homeCountryCode,
+            photo_url: fields.photoUri,
+            bio: fields.bio,
+            certifications: fields.certifications,
+            gear: fields.gear,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(`Server responded with status ${response.status}`);
+        }
+        backendProfileRef.current = await response.json();
+      } catch {
+        // The local write (already saved by the caller) is the fallback -
+        // same offline-resilience spirit as the adventure sync queue. This
+        // sync is retried implicitly on the next edit, or reconciled on
+        // the next app load.
+      }
+    },
+    [authedFetch]
+  );
 
   const updateLocalProfile = useCallback(
     (patch: Partial<LocalProfileFields>) => {
@@ -83,11 +232,12 @@ export function useProfileData() {
         const next = { ...prev, ...patch };
         if (user?.id) {
           saveLocalProfile(user.id, next);
+          syncProfileToBackend(next);
         }
         return next;
       });
     },
-    [user?.id]
+    [user?.id, syncProfileToBackend]
   );
 
   const toggleCertification = useCallback(
@@ -99,11 +249,12 @@ export function useProfileData() {
         const next = { ...prev, certifications: nextCertifications };
         if (user?.id) {
           saveLocalProfile(user.id, next);
+          syncProfileToBackend(next);
         }
         return next;
       });
     },
-    [user?.id]
+    [user?.id, syncProfileToBackend]
   );
 
   const achievements = useMemo(
@@ -264,7 +415,19 @@ export function useProfileData() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      updateLocalProfile({ photoUri: result.assets[0].uri });
+      // Uploaded to R2 first (same pattern as onboarding.tsx and adventure
+      // photos) rather than storing the raw device URI - a local file:// or
+      // content:// path is meaningless on a different device, which is the
+      // entire point of this field now living on the backend.
+      try {
+        const url = await uploadPhoto(authedFetch, ENDPOINTS.uploads, result.assets[0]);
+        updateLocalProfile({ photoUri: url });
+      } catch (err) {
+        showAlert(
+          "Unable to upload photo",
+          err instanceof Error ? err.message : "Check your connection and try again."
+        );
+      }
     }
   };
 
@@ -278,6 +441,7 @@ export function useProfileData() {
           setIsSettingsMenuVisible(false);
           setLocalProfile(DEFAULT_LOCAL_PROFILE);
           setIsProfileLoaded(false);
+          backendProfileRef.current = null;
           setAdventures([]);
           setScubaStats(null);
           setSnorkelingStats(null);
@@ -312,6 +476,7 @@ export function useProfileData() {
               setIsSettingsMenuVisible(false);
               setLocalProfile(DEFAULT_LOCAL_PROFILE);
               setIsProfileLoaded(false);
+              backendProfileRef.current = null;
               setAdventures([]);
               setScubaStats(null);
               setSnorkelingStats(null);
