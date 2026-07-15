@@ -211,6 +211,46 @@ def test_local_data_is_gone_even_if_the_clerk_deletion_call_fails():
         db.close()
 
 
+def test_deleting_account_removes_the_profile_photo_from_storage_not_just_adventure_photos():
+    # Matches the real frontend flow (hooks/useProfileData.ts's
+    # handleAvatarPress): upload first to get a real URL, then set it as
+    # the profile's photo_url via PUT /profile/me - not an adventure photo,
+    # and not merely an orphaned upload either. Proven directly against the
+    # actual storage backend (local-disk here, the same storage.py code
+    # path R2 uses in production/staging - see isolated_upload_root above),
+    # not inferred from PhotoModeration cleanup being shared with adventures.
+    as_user("user_a")
+    photo_url = upload_photo()
+
+    profile_resp = client.put(
+        "/profile/me",
+        json={"first_name": "A", "last_name": "Diver", "photo_url": photo_url},
+    )
+    assert profile_resp.status_code == 200
+    assert profile_resp.json()["photo_url"] == photo_url
+
+    from urllib.parse import urlparse
+
+    from storage import UPLOAD_ROOT
+
+    photo_path = UPLOAD_ROOT / urlparse(photo_url).path.removeprefix("/uploads/")
+    assert photo_path.exists(), "sanity check failed: photo should exist on disk before deletion"
+
+    fake_clerk = mock.Mock()
+    with mock.patch.object(account_module, "Clerk", return_value=fake_clerk):
+        resp = client.delete("/account/me")
+    assert resp.status_code == 204
+
+    assert not photo_path.exists(), "profile photo file was not deleted from storage on account deletion"
+
+    db = TestingSessionLocal()
+    try:
+        assert db.get(models.UserProfile, "user_a") is None
+        assert db.query(models.PhotoModeration).filter_by(user_id="user_a").count() == 0
+    finally:
+        db.close()
+
+
 def test_unauthenticated_deletion_is_rejected():
     remove_auth_override()
     try:
